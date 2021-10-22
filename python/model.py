@@ -13,8 +13,9 @@ class VisualTransformer:
 	'''
 	Transformer encoder class
 	'''
-	class Transformer:
+	class Transformer(layers.Layer):
 		def __init__(self, num_heads, projection_dim):
+			#super
 			self.num_heads = num_heads
 			self.projection_dim = projection_dim
 			self.transformer_units = [
@@ -22,7 +23,7 @@ class VisualTransformer:
     			projection_dim,
 			]
 
-		def __call__(self, x):
+		def call(self, x):
 			'''Layer normalization 1'''
 			x1 = layers.LayerNormalization(epsilon=1e-6)(x)
 
@@ -44,6 +45,49 @@ class VisualTransformer:
 			x = layers.Add()([x3, x2])
 
 			return x
+	
+	class Preprocessor(layers.Layer):
+		def __init__(self):
+			#super
+			pass
+		def call(self, x):
+			augmented_data = self.augment_data(image_size)(self.inputs)
+			patches = self.create_patches(patch_size, augmented_data)
+			encoded_patches = self.encode_patches(num_patches, projection_dim, patches)
+			x = encoded_patches
+
+		def augment_data(self, image_size):
+			data_augmentation = keras.Sequential([
+				layers.Normalization(),
+				layers.Resizing(image_size, image_size),
+				layers.RandomFlip("horizontal"),
+				layers.RandomRotation(factor=0.02),
+				layers.RandomZoom(height_factor=0.2, width_factor=0.2),
+			], 
+			name="data_augmentation")
+			return data_augmentation
+
+		def create_patches(self, patch_size, images):
+			batch_size = tf.shape(images)[0]
+			patches = tf.image.extract_patches(
+				images=images,
+				sizes=[1, patch_size, patch_size, 1],
+				strides=[1, patch_size, patch_size, 1],
+				rates=[1, 1, 1, 1],
+				padding="VALID",
+			)
+			patch_dims = patches.shape[-1]
+			patches = tf.reshape(patches, [batch_size, -1, patch_dims])
+			return patches
+		
+		def encode_patches(self, num_patches, projection_dim, patches):
+			projection = layers.Dense(units=projection_dim)
+			position_embedding = layers.Embedding(input_dim=num_patches, output_dim=projection_dim)
+			positions = tf.range(start=0, limit=num_patches, delta=1)
+			encoded_patches = projection(patches) + position_embedding(positions)
+			return encoded_patches
+
+
 
 	def __init__(self):
 		num_classes = 100
@@ -57,10 +101,7 @@ class VisualTransformer:
 		mlp_head_units = [2048, 1024]
 
 		self.inputs = layers.Input(shape=input_shape)
-		augmented_data = self.augment_data(image_size)(self.inputs)
-		patches = self.create_patches(patch_size, augmented_data)
-		encoded_patches = self.encode_patches(num_patches, projection_dim, patches)
-		x = encoded_patches
+# 
 
 		for _ in range(num_transformer_layers):
 			x = self.Transformer(num_heads, projection_dim)(x)
@@ -82,38 +123,6 @@ class VisualTransformer:
 	
 	def __call__(self):
 		return self.model	
-
-	def augment_data(self, image_size):
-		data_augmentation = keras.Sequential([
-        	layers.Normalization(),
-        	layers.Resizing(image_size, image_size),
-        	layers.RandomFlip("horizontal"),
-        	layers.RandomRotation(factor=0.02),
-        	layers.RandomZoom(height_factor=0.2, width_factor=0.2),
-    	], 
-		name="data_augmentation"
-		)
-		return data_augmentation
-
-	def create_patches(self, patch_size, images):
-		batch_size = tf.shape(images)[0]
-		patches = tf.image.extract_patches(
-			images=images,
-			sizes=[1, patch_size, patch_size, 1],
-            strides=[1, patch_size, patch_size, 1],
-            rates=[1, 1, 1, 1],
-            padding="VALID",
-        )
-		patch_dims = patches.shape[-1]
-		patches = tf.reshape(patches, [batch_size, -1, patch_dims])
-		return patches
-	
-	def encode_patches(self, num_patches, projection_dim, patches):
-		projection = layers.Dense(units=projection_dim)
-		position_embedding = layers.Embedding(input_dim=num_patches, output_dim=projection_dim)
-		positions = tf.range(start=0, limit=num_patches, delta=1)
-		encoded_patches = projection(patches) + position_embedding(positions)
-		return encoded_patches
 
 	def get_outputs(self):
 		outputs = []

@@ -4,6 +4,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow_addons as tfa
 
+from probe import Probe
+
 '''
 ViT Architecture
 '''
@@ -74,10 +76,12 @@ class VisualTransformer:
 		features = x
 
 		self.logits = layers.Dense(num_classes)(features)
+
+		self.model = keras.Model(inputs=self.inputs, outputs=self.logits)
+		self.model.summary()
 	
 	def __call__(self):
-		model = keras.Model(inputs=self.inputs, outputs=self.logits)
-		return model	
+		return self.model	
 
 	def augment_data(self, image_size):
 		data_augmentation = keras.Sequential([
@@ -110,6 +114,23 @@ class VisualTransformer:
 		positions = tf.range(start=0, limit=num_patches, delta=1)
 		encoded_patches = projection(patches) + position_embedding(positions)
 		return encoded_patches
+
+	def get_outputs(self):
+		outputs = []
+		for layer in self.model.layers:
+			if (layer.name[:3] == 'add') and (int(layer.name[4:]) % 2 != 0):
+				outputs.append(layer.output)
+		return outputs
+
+	def probe_layers(self, num_classes, outputs):
+		probe_outputs = []
+		for output in outputs:
+			probe_outputs.append(Probe(num_classes)(output))
+		
+			
+
+		
+VisualTransformer()()
 
 '''
 References:

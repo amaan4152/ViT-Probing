@@ -5,7 +5,7 @@ from tensorflow.keras import Model
 from tensorflow.keras import losses
 from tensorflow.keras.layers import Input
 from tensorflow.keras.datasets import cifar10, cifar100
-from tensorflow.keras.optimizers.schedules import PolynomialDecay, CosineDecay
+from tensorflow.keras.optimizers.schedules import PolynomialDecay
 
 # 3rd-Party scripts
 from vit import DataAugmentation, Preprocessor, VisionTransformer
@@ -70,9 +70,7 @@ def main():
 
     # training
     lr_fn = LEARNING_RATE
-    if LR_DECAY_TYPE == "cosine":
-        lr_fn = CosineDecay(LEARNING_RATE, LR_DECAY_STEPS, name="cosine_decay")
-    elif LR_DECAY_TYPE == "linear":
+    if LR_DECAY_TYPE == "linear":
         lr_fn = PolynomialDecay(LEARNING_RATE, LR_DECAY_STEPS, power=1)
     adam_w = tfa.optimizers.AdamW(learning_rate=lr_fn, weight_decay=WEIGHT_DECAY)
     model.compile(

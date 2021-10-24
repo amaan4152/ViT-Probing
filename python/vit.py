@@ -111,7 +111,7 @@ class VisionTransformer(layers.Layer):
         )
 
         self.MLP_Encoder = FullyConnected(self.transformer_units, 0.1)
-        self.GlobAvg1D = GlobalAveragePooling1D()
+        self.GlobAvg1D = GlobalAveragePooling1D() 
         self.Flatten = Flatten()
         self.Dropout = Dropout(0.5)
         self.MLP_Head = FullyConnected([2048, 1024], 0.5)

@@ -19,21 +19,21 @@ ARGS = CLI_Parser()()
 # training hyperparameters
 LEARNING_RATE = 0.001
 WEIGHT_DECAY = 0.1
-BATCH_SIZE = 2048
+BATCH_SIZE = 4096
 EPOCHS = 100
 LR_DECAY_TYPE = ARGS.LRDecay
 LR_DECAY_STEPS = 1e4
 
-# ViT characteristics
-IMAGE_SIZE = 72
-PATCH_SIZE = 12
+# ViT hyperparameters
+IMAGE_SIZE = 32
+PATCH_SIZE = 1
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 64
 BOOL_PROBES = ARGS.probes
-if "10" in ARGS.dataset:
+if "10" in ARGS.dataset:            # CIFAR-10
     DATA = cifar10.load_data()
     NUM_CLASSES = 10
-else:
+else:                               # CIFAR-100
     DATA = cifar100.load_data()
     NUM_CLASSES = 100
 
@@ -43,7 +43,7 @@ def vit_model(x_train, input_shape):
     inputs = Input(shape=input_shape)
 
     # augment data & perform mean-variance normalization
-    augmentation = DataAugmentation(IMAGE_SIZE)
+    augmentation = DataAugmentation()
     augmentation.layers[0].adapt(x_train)
     x = augmentation(inputs)
     x = Preprocessor(
@@ -52,7 +52,7 @@ def vit_model(x_train, input_shape):
 
     x = VisionTransformer(
         num_encoders=8,
-        num_heads=4,
+        num_heads=16,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
         insert_probes=BOOL_PROBES,
@@ -77,7 +77,6 @@ def gpu_mem_config():
 def main():
     # get train/testz
     (train_data, train_labels), (test_data, test_labels) = DATA
-    print('D0')
     model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
     model.summary()
 
@@ -89,7 +88,7 @@ def main():
     model.compile(
         optimizer=adam_w,
         loss=losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=["accuracy", "sparse_top_k_categorical_accuracy"],
+        metrics=["accuracy"],
     )
 
     # fit

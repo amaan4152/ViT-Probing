@@ -6,18 +6,17 @@ from tensorflow.keras.layers import (
     LayerNormalization,
     MultiHeadAttention,
     Dropout,
-    Input,
     Flatten,
+    GlobalAveragePooling1D,
 )
 
 from probe import Probe
 
 
-def DataAugmentation(image_size):
+def DataAugmentation():
     data_augmentation = Sequential(
         [
             layers.Normalization(),
-            layers.Resizing(image_size, image_size),
             layers.RandomFlip("horizontal"),
             layers.RandomRotation(factor=0.02),
             layers.RandomZoom(height_factor=0.2, width_factor=0.2),
@@ -103,12 +102,16 @@ class VisionTransformer(layers.Layer):
             projection_dims,
         ]
 
-        self.Norm = LayerNormalization(epsilon=1e-6)
+        self.Norm1 = LayerNormalization(epsilon=1e-6)
+        self.Norm2 = LayerNormalization(epsilon=1e-6)
+        self.Norm3 = LayerNormalization(epsilon=1e-6)
+
         self.AttentionHead = MultiHeadAttention(
             num_heads=self.num_heads, key_dim=self.projection_dims, dropout=0.1
         )
 
         self.MLP_Encoder = FullyConnected(self.transformer_units, 0.1)
+        self.GlobAvg1D = GlobalAveragePooling1D()
         self.Flatten = Flatten()
         self.Dropout = Dropout(0.5)
         self.MLP_Head = FullyConnected([2048, 1024], 0.5)
@@ -116,16 +119,17 @@ class VisionTransformer(layers.Layer):
 
     def call(self, input):
         for id in range(self.num_encoders):
-            x = self.Norm(input)
+            x = self.Norm1(input)
             attention_out = self.AttentionHead(x, x)
             sum_1 = attention_out + input
-            x = self.Norm(x)
+            x = self.Norm2(x)
             x = self.MLP_Encoder(x)
             x += sum_1
             if self.insert_probes == True:
                 x = Probe(self.num_classes, id)(x)
 
-        x = self.Norm(x)
+        x = self.Norm3(x)
+        x = self.GlobAvg1D(x)
         x = self.Flatten(x)
         x = self.Dropout(x)
         x = self.MLP_Head(x)

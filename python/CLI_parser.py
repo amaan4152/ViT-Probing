@@ -17,7 +17,10 @@ class CLI_Parser(object):
             help="specify learning rate decay type:\n\t- 'cosine'\n\t- 'linear'",
         )
         parser.add_argument(
-            "--probes", type=bool, required=False, default=False, help="add probes"
+            "--probes", type=bool, required=False, default=True, help="add probes"
+        )
+        parser.add_argument(
+            "--kahan", type=bool, required=False, default=True, help="add probes"
         )
         self.args = parser.parse_args()
 

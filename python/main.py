@@ -1,4 +1,5 @@
 import tensorflow_addons as tfa
+import tensorflow as tf
 import numpy as np
 
 from tensorflow.keras import Model
@@ -16,16 +17,16 @@ from CLI_parser import CLI_Parser
 ARGS = CLI_Parser()()
 
 # training hyperparameters
-LEARNING_RATE = 0.003
+LEARNING_RATE = 0.001
 WEIGHT_DECAY = 0.1
-BATCH_SIZE = 4096
+BATCH_SIZE = 2048
 EPOCHS = 100
 LR_DECAY_TYPE = ARGS.LRDecay
 LR_DECAY_STEPS = 1e4
 
 # ViT characteristics
-IMAGE_SIZE = 72
-PATCH_SIZE = 6
+IMAGE_SIZE = 32
+PATCH_SIZE = 4
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 64
 BOOL_PROBES = ARGS.probes
@@ -59,6 +60,18 @@ def vit_model(x_train, input_shape):
 
     return Model(inputs=inputs, outputs=x)
 
+
+#  ----- GPU CONFIG -----
+# alter GPU VRAM limit for handling large tensors (applies to small patch sizes)
+# https://starriet.medium.com/tensorflow-2-0-wanna-limit-gpu-memory-10ad474e2528
+def gpu_mem_config():
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        except RuntimeError as e:
+            print(e)
 
 #  ----- MODEL EXECUTION -----
 def main():
@@ -94,4 +107,6 @@ def main():
     print(f"Test accuracy: {top_5_acc.numpy():0.6f}")
 
 if __name__ == "__main__":
+    if ARGS.kahan:
+        gpu_mem_config()
     main()

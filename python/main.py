@@ -6,7 +6,7 @@ from tensorflow.keras import Model
 from tensorflow.keras import losses
 from tensorflow.keras.layers import Input
 from tensorflow.keras.datasets import cifar10, cifar100
-from tensorflow.keras.optimizers.schedules import PolynomialDecay
+from tensorflow.keras.optimizers.schedules import PolynomialDecay, CosineDecay
 
 # 3rd-Party scripts
 from vit import DataAugmentation, Preprocessor, VisionTransformer

@@ -26,7 +26,7 @@ LR_DECAY_STEPS = 1e4
 
 # ViT hyperparameters
 IMAGE_SIZE = 72
-PATCH_SIZE = 16
+PATCH_SIZE = 6
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 64
 BOOL_PROBES = ARGS.probes
@@ -84,7 +84,7 @@ def main():
     lr_fn = LEARNING_RATE
     if LR_DECAY_TYPE == "linear":
         lr_fn = PolynomialDecay(LEARNING_RATE, LR_DECAY_STEPS, power=1)
-    adam_w = tfa.optimizers.AdamW(learning_rate=lr_fn, weight_decay=WEIGHT_DECAY)
+    adam_w = tfa.optimizers.AdamW(learning_rate=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     model.compile(
         optimizer=adam_w,
         loss=losses.SparseCategoricalCrossentropy(from_logits=True),

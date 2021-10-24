@@ -17,7 +17,7 @@ def DataAugmentation(image_size):
     data_augmentation = Sequential(
         [
             layers.Normalization(),
-            layers.Resizing((image_size, image_size)),
+            layers.Resizing(width = image_size, height = image_size),
             layers.RandomFlip("horizontal"),
             layers.RandomRotation(factor=0.02),
             layers.RandomZoom(height_factor=0.2, width_factor=0.2),

@@ -43,7 +43,7 @@ def vit_model(x_train, input_shape):
     inputs = Input(shape=input_shape)
 
     # augment data & perform mean-variance normalization
-    augmentation = DataAugmentation()
+    augmentation = DataAugmentation(IMAGE_SIZE)
     augmentation.layers[0].adapt(x_train)
     x = augmentation(inputs)
     x = Preprocessor(

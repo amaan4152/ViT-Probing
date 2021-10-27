@@ -115,22 +115,38 @@ class VisionTransformer(layers.Layer):
         self.DenseClass = Dense(units=num_classes)
 
     def call(self, input):
+        probe_list = []
+        x = input
         for id in range(self.num_encoders):
-            x = self.Norm(input)
+            x = self.Norm(x)
             attention_out = self.AttentionHead(x, x)
             sum_1 = attention_out + input
             x = self.Norm(x)
             x = self.MLP_Encoder(x)
             x += sum_1
             if self.insert_probes == True:
-                x = Probe(self.num_classes, id)(x)
 
-        x = self.Norm(x)
+                probe = tf.stop_gradient(Probe(self.num_classes, id)(x))
+                probe_list.append(probe)
+                #print("probe")
+                #print(probe)
+                #probe_list.append(Probe(self.num_classes, id)(x))
+
+        
+        #x = self.Norm(x)
+        #print("Test 2")
         x = self.Flatten(x)
+        #print("Test 3")
         x = self.Dropout(x)
+        #print("Test 4")
         x = self.MLP_Head(x)
+        #print("Test 5")
         x = self.DenseClass(x)
-        return x
+        #print("Test 6")
+
+        #print(self.probe_list[0])
+
+        return [x, probe_list]
 
 
 """

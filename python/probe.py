@@ -15,7 +15,7 @@ class Probe(layers.Layer):
         )
 
     def call(self, x):
-        x = self.Pool2D(x)
         x = self.Flat(x)
         x = self.Probe(x)
+
         return x

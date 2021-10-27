@@ -125,26 +125,13 @@ class VisionTransformer(layers.Layer):
             x = self.MLP_Encoder(x)
             x += sum_1
             if self.insert_probes == True:
-
                 probe = tf.stop_gradient(Probe(self.num_classes, id)(x))
                 probe_list.append(probe)
-                #print("probe")
-                #print(probe)
-                #probe_list.append(Probe(self.num_classes, id)(x))
 
-        
-        #x = self.Norm(x)
-        #print("Test 2")
         x = self.Flatten(x)
-        #print("Test 3")
         x = self.Dropout(x)
-        #print("Test 4")
         x = self.MLP_Head(x)
-        #print("Test 5")
         x = self.DenseClass(x)
-        #print("Test 6")
-
-        #print(self.probe_list[0])
 
         return [x, probe_list]
 

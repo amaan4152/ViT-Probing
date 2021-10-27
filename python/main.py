@@ -40,7 +40,6 @@ else:
     DATA = cifar100.load_data()
     NUM_CLASSES = 100
 
-
 #   ----- MODEL SETUP -----
 def vit_model(x_train, input_shape):
     inputs = Input(shape=input_shape)
@@ -61,7 +60,6 @@ def vit_model(x_train, input_shape):
         insert_probes=BOOL_PROBES,
     )(x)
 
-    #print(probe_list)
     return Model(inputs=inputs, outputs=[x, probes_out])
 
 #  ----- MODEL EXECUTION -----
@@ -71,8 +69,7 @@ def main():
     print('D0')
     model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
     model.summary()
-    #probe1 = Model(inputs=model.input, outputs=model.get_layer('vision_transformer').probe_list.output)
-
+    
     # training
     lr_fn = LEARNING_RATE
     if LR_DECAY_TYPE == "cosine":
@@ -86,10 +83,6 @@ def main():
         metrics=["accuracy"]#, "sparse_top_k_categorical_accuracy"],
     )
 
-    #predictions = model.predict(np.reshape(test_data[0], (1, 32, 32, 3)))
-    #print(predictions)
-    # fit
-    
     '''
     model.fit(
         x=train_data,
@@ -100,9 +93,7 @@ def main():
         validation_split=0.2,
     )
     '''
-    
-#_, acc, top_5_acc
-    # evaluate
+
     results = model.evaluate(x=test_data, y=test_labels, return_dict=False)
     results = np.asarray(results[11:],dtype=np.float32) * 100
     encoders = range(1, 9)
@@ -116,9 +107,6 @@ def main():
     
     #print(f"Test accuracy: {acc.numpy():0.6f}")
     #print(f"Test accuracy: {top_5_acc.numpy():0.6f}")
-
-
-    
 
 if __name__ == "__main__":
     main()

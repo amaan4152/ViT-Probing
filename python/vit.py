@@ -120,7 +120,7 @@ class VisionTransformer(layers.Layer):
         for id in range(self.num_encoders):
             x = self.Norm(x)
             attention_out = self.AttentionHead(x, x)
-            sum_1 = attention_out + input
+            sum_1 = attention_out + x
             x = self.Norm(x)
             x = self.MLP_Encoder(x)
             x += sum_1

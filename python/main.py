@@ -93,16 +93,20 @@ def main():
         validation_split=0.2,
     )
     '''
+    final_results = np.zeros((8,))
+    for _ in range(10):
+        results = model.evaluate(x=test_data, y=test_labels, return_dict=False)
+        results = np.asarray(results[11:],dtype=np.float32) * 100
+        final_results = np.add(final_results, results)
 
-    results = model.evaluate(x=test_data, y=test_labels, return_dict=False)
-    results = np.asarray(results[11:],dtype=np.float32) * 100
+    final_results /= 10
     encoders = range(1, 9)
 
     plt.figure()
-    plt.plot(encoders, results)
-    plt.title("Untrained Model")
-    plt.xlabel("Encoder #")
-    plt.ylabel("Accuracy [%]", rotation="horizontal")
+    plt.plot(encoders, final_results)
+    plt.title("Untrained Model (CIFAR100)", fontsize=20)
+    plt.xlabel("Encoder #", fontsize=15)
+    plt.ylabel("Linear \n Probe \n Accuracy [%]", labelpad=50, rotation="horizontal", fontsize=15)
     plt.show()
     
     #print(f"Test accuracy: {acc.numpy():0.6f}")

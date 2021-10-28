@@ -1,6 +1,5 @@
 from argparse import ArgumentParser
 
-
 class CLI_Parser(object):
     def __init__(self):
         parser = ArgumentParser()
@@ -12,7 +11,7 @@ class CLI_Parser(object):
         )
         parser.add_argument(
             "--LRDecay",
-            type=bool,
+            type=str,
             required=True,
             help="specify learning rate decay type:\n\t- 'cosine'\n\t- 'linear'",
         )

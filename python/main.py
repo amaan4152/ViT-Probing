@@ -28,10 +28,10 @@ LR_DECAY_TYPE = ARGS.LRDecay
 LR_DECAY_STEPS = 1e4
 
 # ViT characteristics
-IMAGE_SIZE = 72
-PATCH_SIZE = 6
+IMAGE_SIZE = 32
+PATCH_SIZE = 16
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
-PROJECT_DIMS = 64
+PROJECT_DIMS = 384
 BOOL_PROBES = ARGS.probes
 if "10" in ARGS.dataset:
     DATA = cifar10.load_data()
@@ -53,8 +53,8 @@ def vit_model(x_train, input_shape):
     )(x)
 
     x, probes_out = VisionTransformer(
-        num_encoders=8,
-        num_heads=4,
+        num_encoders=12,
+        num_heads=6,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
         insert_probes=BOOL_PROBES,
@@ -93,24 +93,25 @@ def main():
         validation_split=0.2,
     )
     '''
-    final_results = np.zeros((8,))
+
+    final_results = np.zeros((12,))
     for _ in range(10):
         results = model.evaluate(x=test_data, y=test_labels, return_dict=False)
-        results = np.asarray(results[11:],dtype=np.float32) * 100
+        results = np.asarray(results[15:],dtype=np.float32) * 100
         final_results = np.add(final_results, results)
 
     final_results /= 10
-    encoders = range(1, 9)
+    encoders = range(1, 13)
 
     plt.figure()
     plt.plot(encoders, final_results)
-    plt.title("Untrained Model (CIFAR100)", fontsize=20)
+    plt.title("Untrained Model (CIFAR10)", fontsize=20)
     plt.xlabel("Encoder #", fontsize=15)
     plt.ylabel("Linear \n Probe \n Accuracy [%]", labelpad=50, rotation="horizontal", fontsize=15)
     plt.show()
     
     #print(f"Test accuracy: {acc.numpy():0.6f}")
     #print(f"Test accuracy: {top_5_acc.numpy():0.6f}")
-
+    
 if __name__ == "__main__":
     main()

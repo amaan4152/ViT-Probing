@@ -91,10 +91,13 @@ def main():
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=["accuracy"],
     )
-    #print("===== GPU Mirroring END =====")
     model.summary()
+    for layer in model.layers[2:]:
+        layer.set_weights()
+    #print("===== GPU Mirroring END =====")
 
     # fit
+
     model.fit(
         x=train_data,
         y=train_labels,
@@ -102,7 +105,6 @@ def main():
         epochs=EPOCHS,
         validation_split=0.2,
     )
-
     # evaluate
     _, acc = model.evaluate(x=test_data, y=test_labels)
 

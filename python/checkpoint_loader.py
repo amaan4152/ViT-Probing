@@ -1,7 +1,10 @@
 import numpy as np
 
-def main():
-    chk_point = np.load('vit_s16.npz')
-    print(chk_point['head/kernel'].shape)
-if __name__ == '__main__':
-    main()
+def load_weights(weights_file, *args):
+    buffer = []
+    for f in weights_file.files: 
+        if not all(keyword in f for keyword in args):
+            continue
+        print("~ LOADING ===> " + f)
+        buffer.append(weights_file[f])
+    return buffer

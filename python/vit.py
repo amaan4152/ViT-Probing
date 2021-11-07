@@ -9,15 +9,16 @@ from tensorflow.keras.layers import (
     LayerNormalization,
     MultiHeadAttention,
     Dropout,
-    Flatten,    
+    Flatten,
 )
 
-from probe import Probe
+from untrained_probe import Probe
 from checkpoint_loader import load_weights
 
-WEIGHTS_FILE = np.load('vit-S16-fine.npz')
+WEIGHTS_FILE = np.load("vit-S16-fine.npz")
 
-def DataAugmentation(image_size):
+
+def DataAugmentation():
     data_augmentation = Sequential(
         [
             layers.Normalization(),
@@ -30,13 +31,14 @@ def DataAugmentation(image_size):
     return data_augmentation
 
 
+# for testing
 class Patches(layers.Layer):
     def __init__(self, patch_size):
         super(Patches, self).__init__()
         self.patch_size = patch_size
 
     def call(self, images):
-        '''
+        """
         batch_size = tf.shape(images)[0]
         patches = tf.image.extract_patches(
             images=images,
@@ -48,8 +50,9 @@ class Patches(layers.Layer):
         patch_dims = patches.shape[-1]
         N = (images.shape[1] // self.patch_size) ** 2
         return tf.reshape(patches, shape = (batch_size, self.patch_size, self.patch_size, patch_dims))
-        '''
+        """
         return images
+
 
 class PatchEncoder(layers.Layer):
     def __init__(self, num_patches, projection_dims):
@@ -57,40 +60,51 @@ class PatchEncoder(layers.Layer):
         self.projection_dims = projection_dims
         self.num_patches = num_patches
 
-        self.patch_embed = Conv2D(filters=projection_dims,
-                            kernel_size=16,
-                            strides=16)
-        self.class_embed = self.add_weight(name='CLS', shape = (1, 1, projection_dims), initializer='uniform')
-        
-        #self.pos_embed = Embedding(input_dim=num_patches, output_dim=projection_dims)
+        self.patch_embed = Conv2D(filters=projection_dims, kernel_size=16, strides=16)
+        self.class_embed = self.add_weight(
+            name="CLS", shape=(1, 1, projection_dims), initializer="uniform"
+        )
+
+        self.pos_embed = Embedding(input_dim=num_patches, output_dim=projection_dims)
 
     def set_weights(self):
-        patch_embed_weights = load_weights(WEIGHTS_FILE, 'embedding/')
-        class_embed_weights = load_weights(WEIGHTS_FILE, 'cls')
-        posit_embed_weights = load_weights(WEIGHTS_FILE, 'pos_embedding')
+        patch_embed_weights = load_weights(WEIGHTS_FILE, "embedding/")
+        class_embed_weights = load_weights(WEIGHTS_FILE, "cls")
+        posit_embed_weights = load_weights(WEIGHTS_FILE, "pos_embedding")
 
-        print(class_embed_weights[0].shape)
+        self.patch_embed.set_weights(patch_embed_weights[::-1])
         self.class_embed.assign(class_embed_weights[0])
         self.pos_embed.set_weights(posit_embed_weights)
 
     def call(self, patch):
-        pos = tf.range(start=0, limit=self.num_patches + 1, delta=1)
         patch_embed = self.patch_embed(patch)
-        patch_embed = tf.reshape(patch_embed, (tf.shape(patch_embed)[0], tf.shape(patch_embed)[1] * tf.shape(patch_embed)[2], tf.shape(patch_embed)[3]))
-        
-        cls_embed = tf.broadcast_to(self.class_embed, [tf.shape(patch)[0], 1, self.projection_dims])
+        patch_embed = tf.reshape(
+            patch_embed,
+            (
+                tf.shape(patch_embed)[0],
+                tf.shape(patch_embed)[1] * tf.shape(patch_embed)[2],
+                tf.shape(patch_embed)[3],
+            ),
+        )
+
+        cls_embed = tf.broadcast_to(
+            self.class_embed, [tf.shape(patch)[0], 1, self.projection_dims]
+        )
         patch_embed = tf.concat([cls_embed, patch_embed], axis=1)
 
-        self.pos_embed = self.add_weight(name='POS_EMBED', shape = (1, patch_embed.shape[1], patch_embed.shape[2]))
+        self.pos_embed = self.add_weight(
+            name="POS_EMBED", shape=(1, patch_embed.shape[1], patch_embed.shape[2])
+        )
         encode = patch_embed + self.pos_embed
         return encode
-    
+
+
 class Preprocessor(layers.Layer):
     def __init__(self, num_patches, patch_size, projection_dims):
         super(Preprocessor, self).__init__()
         self.Patches = Patches(patch_size)
         self.PatchEncoder = PatchEncoder(num_patches, projection_dims)
-    
+
     def set_weights(self):
         self.PatchEncoder.set_weights()
 
@@ -99,20 +113,23 @@ class Preprocessor(layers.Layer):
         x = self.PatchEncoder(x)
         return x
 
+
 class FullyConnected(layers.Layer):
     def __init__(self, widths, dropout):
         super(FullyConnected, self).__init__()
         self.FC = []
         for width in widths:
-            self.FC.append(Dense(units=width, activation=tf.nn.gelu, name='dense_'+str(width)))
-            self.FC.append(Dropout(dropout, name='dropout_'+str(width)))
+            self.FC.append(
+                Dense(units=width, activation=tf.nn.gelu, name="dense_" + str(width))
+            )
+            self.FC.append(Dropout(dropout, name="dropout_" + str(width)))
 
     def set_weights(self, encoder_id):
         id = 0
         for dense in self.FC:
-            if 'dropout' in dense.name:
+            if "dropout" in dense.name:
                 continue
-            dense_weights = load_weights(WEIGHTS_FILE, encoder_id, f'Dense_{id}')
+            dense_weights = load_weights(WEIGHTS_FILE, encoder_id, f"Dense_{id}")
             dense.set_weights(dense_weights[::-1])
             id += 1
 
@@ -121,6 +138,7 @@ class FullyConnected(layers.Layer):
             x = fc_layer(x)
         return x
 
+
 class VisionTransformer(layers.Layer):
     def __init__(
         self, num_encoders, num_heads, num_classes, projection_dims, insert_probes
@@ -128,7 +146,7 @@ class VisionTransformer(layers.Layer):
         super(VisionTransformer, self).__init__()
 
         self.probes_out = [0] * num_encoders
-        
+
         self.num_classes = num_classes
         self.insert_probes = insert_probes
         self.num_encoders = num_encoders
@@ -144,38 +162,50 @@ class VisionTransformer(layers.Layer):
         self.Norm3 = LayerNormalization(epsilon=1e-6)
 
         self.AttentionHead = MultiHeadAttention(
-            num_heads=self.num_heads, key_dim=int(self.projection_dims/6), dropout=0.1
+            num_heads=self.num_heads, key_dim=int(self.projection_dims / 6), dropout=0.1
         )
 
         self.MLP_Encoder = FullyConnected(self.transformer_units, 0.1)
         self.Flatten = Flatten()
         self.Dropout = Dropout(0.5)
-        #self.MLP_Head = FullyConnected([2048, 1024], 0.5)
         self.Head = Dense(units=num_classes)
 
     def set_weights(self):
         for id in range(self.num_encoders):
-            encoder_id = 'encoderblock_'+str(id)+'/'
-            norm1_weights = load_weights(WEIGHTS_FILE, encoder_id, 'LayerNorm_0')
-            norm2_weights = load_weights(WEIGHTS_FILE, encoder_id, 'LayerNorm_2')
-            MSA_weights_k = load_weights(WEIGHTS_FILE, encoder_id, 'MultiHeadDotProductAttention', 'key')
-            MSA_weights_q = load_weights(WEIGHTS_FILE, encoder_id, 'MultiHeadDotProductAttention', 'query')
-            MSA_weights_v = load_weights(WEIGHTS_FILE, encoder_id, 'MultiHeadDotProductAttention', 'value')
-            MSA_weights_o = load_weights(WEIGHTS_FILE, encoder_id, 'MultiHeadDotProductAttention', 'out')
-            MSA_net_weights = [*MSA_weights_k[::-1], *MSA_weights_q[::-1], *MSA_weights_v[::-1], *MSA_weights_o[::-1]]
+            encoder_id = "encoderblock_" + str(id) + "/"
+            norm1_weights = load_weights(WEIGHTS_FILE, encoder_id, "LayerNorm_0")
+            norm2_weights = load_weights(WEIGHTS_FILE, encoder_id, "LayerNorm_2")
+            MSA_weights_k = load_weights(
+                WEIGHTS_FILE, encoder_id, "MultiHeadDotProductAttention", "key"
+            )
+            MSA_weights_q = load_weights(
+                WEIGHTS_FILE, encoder_id, "MultiHeadDotProductAttention", "query"
+            )
+            MSA_weights_v = load_weights(
+                WEIGHTS_FILE, encoder_id, "MultiHeadDotProductAttention", "value"
+            )
+            MSA_weights_o = load_weights(
+                WEIGHTS_FILE, encoder_id, "MultiHeadDotProductAttention", "out"
+            )
+            MSA_net_weights = [
+                *MSA_weights_k[::-1],
+                *MSA_weights_q[::-1],
+                *MSA_weights_v[::-1],
+                *MSA_weights_o[::-1],
+            ]
 
             self.Norm1.set_weights(norm1_weights[::-1])
             self.Norm2.set_weights(norm2_weights[::-1])
             self.AttentionHead.set_weights(MSA_net_weights)
             self.MLP_Encoder.set_weights(encoder_id)
 
-        norm3_weights = load_weights(WEIGHTS_FILE, 'encoder_norm')
-        head_weights = load_weights(WEIGHTS_FILE, 'head')
+        norm3_weights = load_weights(WEIGHTS_FILE, "encoder_norm")
+        head_weights = load_weights(WEIGHTS_FILE, "head")
 
         self.Norm3.set_weights(norm3_weights[::-1])
-        #self.Head.set_weights(head_weights[::-1])
+        self.Head.set_weights(head_weights[::-1])
 
-    def call(self, input, training = False):
+    def call(self, input, training=False):
         for id in range(self.num_encoders):
             x = self.Norm1(input)
             attention_out = self.AttentionHead(x, x)
@@ -183,20 +213,17 @@ class VisionTransformer(layers.Layer):
             x = self.Norm2(x)
             x = self.MLP_Encoder(x)
             x += sum_1
-            if self.insert_probes == True:
+            if self.insert_probes:
                 tf.stop_gradient(Probe(self.num_classes, id)(x))
             input = x
 
         x = self.Norm3(x)
-        #x = self.GlobAvg1D(x)
-        #x = self.Flatten(x)
-        #x = self.Dropout(x)
-        #x = self.MLP_Head(x)
-        x = self.Head(x[:,0])
+        x = self.Head(x[:, 0])
 
-        if self.insert_probes == True:
+        if self.insert_probes:
             return (x, tf.convert_to_tensor(self.probes_out, dtype=tf.float32))
         return x
+
 
 """
 References:

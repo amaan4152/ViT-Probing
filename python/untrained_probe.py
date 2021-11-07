@@ -1,8 +1,5 @@
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Dense, MaxPooling1D, Flatten
+from tensorflow.keras.layers import Dense, Flatten
 
 
 class Probe(layers.Layer):

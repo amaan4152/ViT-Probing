@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Flatten, Dense
 import numpy as np
 import matplotlib.pyplot as plt
-from encoder_dataset import BATCH_SIZE, get_EncoderOutputs
+from trained_vit import BATCH_SIZE, get_EncoderOutputs
 
 # ----------Import data----------#
 """

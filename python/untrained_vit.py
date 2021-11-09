@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Input
 from tensorflow.keras.datasets import cifar10, cifar100
 
 # 3rd-Party scripts
-from vit import DataAugmentation, Preprocessor, VisionTransformer
+from vit_tf import DataAugmentation, Preprocessor, VisionTransformer
 from CLI_parser import CLI_Parser
 
 #   ----- MODEL CONFIGURATIONS -----

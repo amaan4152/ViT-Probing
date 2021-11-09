@@ -9,4 +9,13 @@ compile:
 	flake8 --ignore=E,W .
 
 pdf:
-	a2ps *.py -o *.ps --pro=color
+	for FILE in *; do \
+		if [ -d $${FILE} ]; then \
+			continue; fi; \
+		a2ps $${FILE} -o "$${FILE%%.*}.ps" --pro=color; \
+		ps2pdf "$${FILE%%.*}.ps"; done; \
+	rm *.ps; \
+	gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vit_probes.pdf *.pdf;
+	
+clean: 
+	rm *.pdf

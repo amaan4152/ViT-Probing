@@ -11,13 +11,10 @@ class CLI_Parser(object):
             help="choose dataset: \n\t- 'cifar10'\n\t- 'cifar100'",
         )
         parser.add_argument(
-            "--LRDecay",
-            type=bool,
-            required=True,
-            help="specify learning rate decay type:\n\t- 'cosine'\n\t- 'linear'",
+            "--probes", type=bool, required=False, default=False, help="add probes"
         )
         parser.add_argument(
-            "--probes", type=bool, required=False, default=False, help="add probes"
+            "--kahan", type=bool, required=False, default=True, help="add probes"
         )
         self.args = parser.parse_args()
 

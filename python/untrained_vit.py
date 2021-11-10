@@ -25,10 +25,10 @@ BATCH_SIZE = 1024
 EPOCHS = 100
 
 # ViT hyperparameters
-IMAGE_SIZE = 36
+IMAGE_SIZE = 72
 PATCH_SIZE = 18
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
-PROJECT_DIMS = 20
+PROJECT_DIMS = 72
 NUM_ENCODERS = 12
 NUM_HEADS = 6
 BOOL_PROBES = ARGS.probes
@@ -57,7 +57,7 @@ def plot_diagnostics(history):
     plt.suptitle("ViT: S_16-72")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{WRK_DIR}/plots/{uuid4()}-S_16_72-graph.png")
+    plt.savefig(f'{WRK_DIR}/plots/{uuid4()}-S_16_72-graph.png')
 
 
 #  ----- GPU CONFIG ----- #

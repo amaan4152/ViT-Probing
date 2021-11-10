@@ -26,7 +26,7 @@ EPOCHS = 100
 IMAGE_SIZE = 72
 PATCH_SIZE = 18
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
-PROJECT_DIMS = 384
+PROJECT_DIMS = 81
 NUM_ENCODERS = 12
 NUM_HEADS = 6
 BOOL_PROBES = ARGS.probes
@@ -38,24 +38,24 @@ else:  # CIFAR-100
     NUM_CLASSES = 100
 
 
-# plot loss/accuracy history 
+# plot loss/accuracy history
 def plot_diagnostics(history):
     # plot loss
     plt.subplot(211)
     plt.title("Loss")
-    plt.plot(history['loss'], color='blue', label='Train')
-    plt.plot(history['val_loss'], color='red', label='Validation')
+    plt.plot(history["loss"], color="blue", label="Train")
+    plt.plot(history["val_loss"], color="red", label="Validation")
 
     # plot accuracy
     plt.subplot(211)
     plt.title("Accuracy")
-    plt.plot(history['accuracy'], color='blue', label='Train')
-    plt.plot(history['val_accuracy'], color='red', label='Validation')
-    
-    plt.suptitle('ViT: S_16-72')
+    plt.plot(history["accuracy"], color="blue", label="Train")
+    plt.plot(history["val_accuracy"], color="red", label="Validation")
+
+    plt.suptitle("ViT: S_16-72")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f'./plot/{uuid4()}-S_16_72-graph.png')
+    plt.savefig(f"./plot/{uuid4()}-S_16_72-graph.png")
 
 
 #  ----- GPU CONFIG ----- #
@@ -101,11 +101,7 @@ def main():
 
     # compile model
     model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
-    lr_sched = PolynomialDecay(
-        power=1, 
-        initial_learning_rate=(8e-4), 
-        decay_steps=10000
-    )
+    lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
     model.compile(
         optimizer=adam,
@@ -126,13 +122,14 @@ def main():
     )
 
     # save trained weights for training probes
-    model.save_weights('./checkpoints/tf/trained_chkpt')
+    model.save_weights("./checkpoints/tf/trained_chkpt")
 
     # evaluate
     model.evaluate(x=test_data, y=test_labels)
 
     # plot loss & accuracies
     plot_diagnostics(H.history)
+
 
 if __name__ == "__main__":
     tf.config.run_functions_eagerly(True)

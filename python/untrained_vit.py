@@ -8,6 +8,7 @@ from tensorflow.keras.datasets import cifar10, cifar100
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from tensorflow.keras.optimizers import Adam
 
+from os.path import getcwd
 from uuid import uuid4
 
 # 3rd-Party scripts
@@ -16,6 +17,7 @@ from CLI_parser import CLI_Parser
 
 #   ----- MODEL CONFIGURATIONS ----- #
 # get arguments from command-line -> see CLI_parser.py
+WRK_DIR = getcwd()
 ARGS = CLI_Parser()()
 
 # training hyperparameters
@@ -55,7 +57,7 @@ def plot_diagnostics(history):
     plt.suptitle("ViT: S_16-72")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"./plot/{uuid4()}-S_16_72-graph.png")
+    plt.savefig(f"{WRK_DIR}/plot/{uuid4()}-S_16_72-graph.png")
 
 
 #  ----- GPU CONFIG ----- #
@@ -111,7 +113,7 @@ def main():
     model.summary()
 
     # fit
-    call_ES = EarlyStopping(patience=3)
+    call_ES = EarlyStopping(patience=5)
     H = model.fit(
         x=train_data,
         y=train_labels,
@@ -122,7 +124,7 @@ def main():
     )
 
     # save trained weights for training probes
-    model.save_weights("./checkpoints/tf/trained_chkpt")
+    model.save_weights(f'{WRK_DIR}/checkpoints/tf/trained_chkpt')
 
     # evaluate
     model.evaluate(x=test_data, y=test_labels)

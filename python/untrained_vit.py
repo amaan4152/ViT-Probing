@@ -8,7 +8,7 @@ from tensorflow.keras.datasets import cifar10, cifar100
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from tensorflow.keras.optimizers import Adam
 
-from os.path import getcwd
+from os import getcwd
 from uuid import uuid4
 
 # 3rd-Party scripts
@@ -124,7 +124,7 @@ def main():
     )
 
     # save trained weights for training probes
-    model.save_weights(f'{WRK_DIR}/checkpoints/tf/trained_chkpt')
+    model.save_weights(f"{WRK_DIR}/checkpoints/tf/trained_chkpt")
 
     # evaluate
     model.evaluate(x=test_data, y=test_labels)

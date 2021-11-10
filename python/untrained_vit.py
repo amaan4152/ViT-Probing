@@ -2,7 +2,10 @@ import tensorflow as tf
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.datasets import cifar10, cifar100
+from tensorflow.keras.optimizers.schedules import PolynomialDecay
+from tensorflow.keras.optimizers import Adam
 
 # 3rd-Party scripts
 from vit_tf import DataAugmentation, Preprocessor, VisionTransformer
@@ -17,8 +20,8 @@ BATCH_SIZE = 1024
 EPOCHS = 100
 
 # ViT hyperparameters
-IMAGE_SIZE = 32
-PATCH_SIZE = 16
+IMAGE_SIZE = 72
+PATCH_SIZE = 18
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 384
 NUM_ENCODERS = 12
@@ -50,7 +53,7 @@ def vit_model(x_train, input_shape):
     input = Input(shape=input_shape)
 
     # augment data & perform mean-variance normalization
-    augmentation = DataAugmentation()
+    augmentation = DataAugmentation(IMAGE_SIZE)
     augmentation.layers[0].adapt(x_train)
     x = augmentation(input)
     x = Preprocessor(
@@ -73,30 +76,26 @@ def main():
     # get train/tests
     (train_data, train_labels), (test_data, test_labels) = DATA
 
+    # compile model
     model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
+    lr_sched = PolynomialDecay(initial_learning_rate=(8e-4), decay_steps=10000)
+    adam = Adam(learning_rate=lr_sched)
     model.compile(
-        optimizer="adam",
+        optimizer=adam,
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
     model.summary()
 
-    """
-    Custom weight initializer using pretrained weights.
-    Bit buggy implementation; embedding dims are not compliant
-
-
-    for layer in model.layers[2:]:
-        layer.set_weights()
-    """
-
     # fit
+    call_ES = EarlyStopping(patience=3)
     model.fit(
         x=train_data,
         y=train_labels,
         batch_size=BATCH_SIZE,
         epochs=EPOCHS,
-        validation_split=0.2,
+        validation_split=0.1,
+        callbacks=[call_ES],
     )
 
     # evaluate

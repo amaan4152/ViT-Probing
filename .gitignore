@@ -1,2 +1,3 @@
 vit_s16.npz
 vit-S16-fine.npz
+python/__pycache__/*

@@ -49,7 +49,7 @@ def plot_diagnostics(history):
     plt.plot(history["val_loss"], color="red", label="Validation")
 
     # plot accuracy
-    plt.subplot(211)
+    plt.subplot(212)
     plt.title("Accuracy")
     plt.plot(history["accuracy"], color="blue", label="Train")
     plt.plot(history["val_accuracy"], color="red", label="Validation")

@@ -1,2 +1,2 @@
-model_checkpoint_path: "trained_chkpt"
-all_model_checkpoint_paths: "trained_chkpt"
+model_checkpoint_path: "S_18-RES_72-NOCONV"
+all_model_checkpoint_paths: "S_18-RES_72-NOCONV"

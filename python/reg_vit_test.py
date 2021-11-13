@@ -1,10 +1,8 @@
-import re
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
 from tensorflow.keras import Model
-from tensorflow.keras import layers
-from tensorflow.keras.layers import Input
+from tensorflow.keras.layers import Input, Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.datasets import cifar10, cifar100
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
@@ -49,22 +47,31 @@ def plot_diagnostics(history, history_with_conv):
     plt.title("Loss")
     plt.plot(history["loss"], color="blue", label="Train")
     plt.plot(history["val_loss"], color="red", label="Validation")
-    plt.plot(history_with_conv["loss"], '--', color="blue", label="Train (with conv)")
-    plt.plot(history_with_conv["val_loss"], '--', color="red", label="Validation (with conv)")
+    plt.plot(history_with_conv["loss"], "--", color="blue", label="Train (with conv)")
+    plt.plot(
+        history_with_conv["val_loss"], "--", color="red", label="Validation (with conv)"
+    )
 
     # plot accuracy
     plt.subplot(212)
     plt.title("Accuracy")
     plt.plot(history["accuracy"], color="blue", label="Train")
     plt.plot(history["val_accuracy"], color="red", label="Validation")
-    plt.plot(history_with_conv["accuracy"], '--', color="blue", label="Train (with conv)")
-    plt.plot(history_with_conv["val_accuracy"], '--', color="red", label="Validation (with conv)")
+    plt.plot(
+        history_with_conv["accuracy"], "--", color="blue", label="Train (with conv)"
+    )
+    plt.plot(
+        history_with_conv["val_accuracy"],
+        "--",
+        color="red",
+        label="Validation (with conv)",
+    )
 
     plt.suptitle("ViT: S_16-72")
     plt.legend()
     plt.tight_layout()
     plt.show()
-    plt.savefig(f'{WRK_DIR}/plots/{uuid4()}-S_16_72-graph.png')
+    plt.savefig(f"{WRK_DIR}/plots/{uuid4()}-S_16_72-graph.png")
 
 
 #  ----- GPU CONFIG ----- #
@@ -88,15 +95,19 @@ def vit_model(x_train, input_shape, add_conv=False):
     augmentation = DataAugmentation(IMAGE_SIZE)
     augmentation.layers[0].adapt(x_train)
     x = augmentation(input)
-    
+
+    if add_conv:
+        x = Conv2D(
+            filters=2 * PATCH_SIZE,
+            kernel_size=PATCH_SIZE,
+            kernel_initializer="he_normal",
+            activation="elu",
+            padding="SAME",
+        )(x)
 
     x = Preprocessor(
         num_patches=PATCH_NUM, patch_size=PATCH_SIZE, projection_dims=PROJECT_DIMS
     )(x)
-
-    if add_conv == True:
-        x = layers.Conv2D(2*PATCH_SIZE, 8, padding='same', activation='relu')(x)
-
 
     x = VisionTransformer(
         num_encoders=NUM_ENCODERS,
@@ -110,38 +121,28 @@ def vit_model(x_train, input_shape, add_conv=False):
 
 
 #  ----- MODEL EXECUTION ----- #
-def main():
+def train_model():
     # get train/tests
     (train_data, train_labels), (test_data, test_labels) = DATA
 
-    # compile model
+    # init models
     model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
-    model_with_conv = vit_model(x_train=train_data, input_shape=(32, 32, 3), add_conv=True)
+    model_with_conv = vit_model(
+        x_train=train_data, input_shape=(32, 32, 3), add_conv=True
+    )
     lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
-    model.compile(
-        optimizer=adam,
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=["accuracy"],
-    )
+    call_ES = EarlyStopping(patience=7)
+
+    # compile model (with conv)
     model_with_conv.compile(
         optimizer=adam,
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
-    model.summary()
+    model_with_conv.summary()
 
-    # fit
-    call_ES = EarlyStopping(patience=5)
-    H = model.fit(
-        x=train_data,
-        y=train_labels,
-        batch_size=BATCH_SIZE,
-        epochs=EPOCHS,
-        validation_split=0.1,
-        callbacks=[call_ES],
-    )
-
+    # fit model (with conv)
     H_with_conv = model_with_conv.fit(
         x=train_data,
         y=train_labels,
@@ -152,18 +153,38 @@ def main():
     )
 
     # save trained weights for training probes
-    model.save_weights(f"{WRK_DIR}/checkpoints/tf/trained_chkpt")
+    model_with_conv.save_weights(f"{WRK_DIR}/checkpoints/tf/S_18-RES_72-CONV_F32_K18")
+
+    # compile model (no conv)
+    model.compile(
+        optimizer=adam,
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=["accuracy"],
+    )
+    model.summary()
+
+    # fit (no conv)
+    H = model.fit(
+        x=train_data,
+        y=train_labels,
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        validation_split=0.1,
+        callbacks=[call_ES],
+    )
+
+    # save trained weights for training probes
+    model.save_weights(f"{WRK_DIR}/checkpoints/tf/S_18-RES_72-NOCONV")
 
     # evaluate
     results = model.evaluate(x=test_data, y=test_labels)
     results_with_conv = model_with_conv.evaluate(x=test_data, y=test_labels)
 
-
     # plot loss & accuracies
     plot_diagnostics(H.history, H_with_conv.history)
 
-    difference = results_with_conv[1] - results[1]
-    print("With conv - without conv: " + str(difference))
+    diff = results_with_conv[1] - results[1]
+    print(f"% diff: {100 * diff}")
 
 
 if __name__ == "__main__":
@@ -171,4 +192,4 @@ if __name__ == "__main__":
     if ARGS.kahan:
         gpu_mem_config()
 
-    main()
+    train_model()

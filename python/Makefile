@@ -1,5 +1,5 @@
 untrained: compile
-	python3 untrained_vit.py --dataset cifar10 --kahan True
+	python3 reg_vit_test.py --dataset cifar10 --kahan True
 
 trained: compile
 	python3 trained_probe.py

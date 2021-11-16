@@ -11,20 +11,18 @@ print(
     + "]: dependencies..."
 )
 import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Conv2D
+from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.datasets import cifar10, cifar100
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from tensorflow.keras.optimizers import Adam
-from tqdm import trange
 from os import getcwd
 
 # 3rd-Party scripts
-from vit_tf import DataAugmentation, VisionTransformer
 from CLI_parser import CLI_Parser
+from trained_probe import train_probes
+from vit_tf import VisionTransformer
 
 print("[" + Fore.GREEN + Style.BRIGHT + "SUCCESS" + Style.RESET_ALL + "]: load")
 
@@ -56,32 +54,27 @@ else:  # CIFAR-100
 
 
 #   ----- MODEL SETUP ----- #
-def vit_model(x_train, input_shape, add_conv=False):
-    input = Input(shape=input_shape)
-
-    # augment data & perform mean-variance normalization
-    augmentation = DataAugmentation(IMAGE_SIZE)
-    augmentation.layers[0].adapt(x_train)
-    x = augmentation(input)
-
+def vit_model(x_train, add_conv=False):
+    test_layer = None
     if add_conv:
-        x = Conv2D(
+        test_layer = Conv2D(
             filters=PATCH_SIZE,
-            kernel_size=int(PATCH_SIZE * 2),
+            kernel_size=int(PATCH_SIZE),
             activation="relu",
             padding="SAME",
-        )(x)
-
-    x = VisionTransformer(
+        )
+    model = VisionTransformer(
+        x_train=x_train,
+        image_size=IMAGE_SIZE,
         num_patches=PATCH_NUM,
         patch_size=PATCH_SIZE,
         num_encoders=NUM_ENCODERS,
         num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
-    )(x)
-    output = x
-    return Model(inputs=input, outputs=output)
+        layer=test_layer,
+    )
+    return model
 
 
 #  ----- MODEL EXECUTION ----- #
@@ -90,10 +83,8 @@ def train_model(*args):
     (train_data, train_labels), (test_data, test_labels) = DATA
 
     # init models
-    model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
-    model_with_conv = vit_model(
-        x_train=train_data, input_shape=(32, 32, 3), add_conv=True
-    )
+    model = vit_model(x_train=train_data)
+    model_with_conv = vit_model(x_train=train_data, add_conv=True)
     lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
     call_ES = EarlyStopping(patience=5)
@@ -104,6 +95,7 @@ def train_model(*args):
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
+    model_with_conv.build(input_shape=(32, 32, 3))
     model_with_conv.summary()
 
     # fit model (with conv)
@@ -117,7 +109,7 @@ def train_model(*args):
     )
 
     # save trained weights for training probes
-    save_weights(model=model)
+    save_weights(model=model, config="CONV")
 
     # compile model (no conv)
     model.compile(
@@ -125,6 +117,7 @@ def train_model(*args):
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
+    model.build(input_shape=(32, 32, 3))
     model.summary()
 
     # fit (no conv)
@@ -138,7 +131,7 @@ def train_model(*args):
     )
 
     # save trained weights for training probes
-    save_weights(model=model)
+    save_weights(model=model, config="NOCONV")
 
     # evaluate
     results = model.evaluate(x=test_data, y=test_labels)
@@ -151,24 +144,16 @@ def train_model(*args):
     print(f"% diff: {100 * diff}")
 
 
-def get_EncoderOutputs():
+def get_EncoderOutputs(add_conv):
     train, test = DATA
-    model = vit_model(x_train=train[0], input_shape=(32, 32, 3))
+    model = vit_model(x_train=train[0], add_conv=add_conv)
     latest = tf.train.latest_checkpoint("checkpoints/tf/chkpt-1/")
-    print(latest)
     model.load_weights(latest)
-    input = model.input
-    encoder_output = model.layers[2].layers[1].output
-    encoder_shortcut = Model(input, encoder_output)
-
-    x_train, y_train = [], []
-    for _ in trange(EPOCHS):
-        train_data, train_labels = batchify(train)
-        encoder_feature = encoder_shortcut.predict(train_data)
-        x_train.append(encoder_feature)
-        y_train.append(train_labels)
-
-    return x_train, y_train
+    model(train[0])
+    x_train, y_train = model.encoder_out, train[1]
+    model(test[0])
+    x_test, y_test = model.encoder_out, test[1]
+    return (x_train, y_train, x_test, y_test)
 
 
 def main():
@@ -203,7 +188,8 @@ def main():
         std_plot_name = input("Provide name of plot: ")
         train_model(std_plot_name)
     else:
-        get_EncoderOutputs()
+        train_probes(get_EncoderOutputs(False))
+        # train_probes(get_EncoderOutputs(True))
 
 
 # ----- UTILITY FUNCTIONS ----- #
@@ -217,7 +203,7 @@ def main():
 def diradjust(fn):
     def wrapper(*args, **kwargs):
         wrapper.calls += 1
-        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{wrapper.calls}/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-NOCONV"
+        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{wrapper.calls}/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-{kwargs['config']}"
         return fn(model=kwargs["model"], path=path)
 
     wrapper.calls = 0
@@ -227,15 +213,6 @@ def diradjust(fn):
 @diradjust
 def save_weights(*args, **kwargs):
     kwargs["model"].save_weights(kwargs["path"])
-
-
-def batchify(data):
-    x, y = data
-    x, y = np.array(x), np.array(y)
-    num_samples = x.shape[0]
-    indecies = np.arange(num_samples)
-    choices = np.random.choice(indecies, size=BATCH_SIZE)
-    return (x[choices], y[choices].flatten())
 
 
 # alter GPU VRAM limit for handling large tensors (applies to small patch sizes)

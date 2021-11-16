@@ -1,5 +1,5 @@
+import numpy as np
 import tensorflow as tf
-
 from tensorflow.keras import layers, Sequential, Model
 from tensorflow.keras.layers import (
     Dense,
@@ -121,6 +121,7 @@ class Encoder(layers.Layer):
         self.MLP_Encoder = FullyConnected(dense_widths, dropout=0.1)
 
     def call(self, input):
+        encoder_features = []
         for _ in range(self.num_encoders):
             x = self.Norm1(input)
             attention_out = self.AttentionHead(x, x)
@@ -129,20 +130,28 @@ class Encoder(layers.Layer):
             x = self.MLP_Encoder(x)
             x += sum_1
             input = x
+            encoder_features.append(input)
+        self.encoder_features = np.array(encoder_features)
         return x
 
 
 class VisionTransformer(Model):
     def __init__(
         self,
+        x_train,
+        image_size,
         num_patches,
         patch_size,
         num_encoders,
         num_heads,
         num_classes,
         projection_dims,
+        layer=None,
     ):
         super(VisionTransformer, self).__init__()
+        self.DataAugmentation = DataAugmentation(image_size)
+        self.DataAugmentation.layers[0].adapt(x_train)
+        self.layer = layer
         self.Preprocessor = Preprocessor(
             num_patches=num_patches,
             patch_size=patch_size,
@@ -157,8 +166,12 @@ class VisionTransformer(Model):
         self.Head = Dense(units=num_classes)
 
     def call(self, x):
+        x = self.DataAugmentation(x)
+        if self.layer:
+            x = self.layer(x)
         x = self.Preprocessor(x)
         x = self.Encoder(x)
+        self.encoder_out = self.Encoder.encoder_features
         x = self.Norm3(x)
         x = self.Head(x[:, 0])
         return x

@@ -1,8 +1,10 @@
 import tensorflow as tf
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Flatten, Dense
 import numpy as np
 import matplotlib.pyplot as plt
-from reg_vit_test import BATCH_SIZE
+
+BATCH_SIZE = 1024
 
 # ----------Import data----------#
 """
@@ -21,8 +23,8 @@ Make sure that training >> testing
 """
 
 
-def train_probes(*args):
-    x_train, y_train, x_test, y_test = args
+def train_probes(data):
+    x_train, y_train, x_test, y_test = data
 
     # ----------Create Probes----------#
     NUM_PROBES = 12
@@ -36,6 +38,7 @@ def train_probes(*args):
     # ----------Train Probes----------#
     EPOCHS = 100
     probe_num = 1
+    call_ES = EarlyStopping(patience=5)
     for probe in probe_list:
         print(f"=== TRAINING PROBE #{probe_num}===")
         probe.compile(
@@ -51,6 +54,7 @@ def train_probes(*args):
             batch_size=BATCH_SIZE,
             steps_per_epoch=(0.9 * x_train.shape[1] // BATCH_SIZE),
             validation_split=0.1,
+            callbacks=[call_ES],
         )
         probe_num += 1
     print("=== TRAINING COMPLETE ===")

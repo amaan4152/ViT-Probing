@@ -1,25 +1,26 @@
+import colorama as color
+from colorama import Fore
+from colorama import Style
 import matplotlib.pyplot as plt
 import tensorflow as tf
-
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.datasets import cifar10, cifar100
 from tensorflow.keras.optimizers.schedules import PolynomialDecay
 from tensorflow.keras.optimizers import Adam
-
 from os import getcwd
-from uuid import uuid4
 
 # 3rd-Party scripts
-from vit_tf import DataAugmentation, Preprocessor, VisionTransformer
+from vit_tf import DataAugmentation, VisionTransformer
 from CLI_parser import CLI_Parser
 
-#   ----- MODEL CONFIGURATIONS ----- #
+# ----- CONFIGURATIONS ----- #
 # get arguments from command-line -> see CLI_parser.py
 WRK_DIR = getcwd()
 ARGS = CLI_Parser()()
 
+#   ----- MODEL CONFIGURATIONS ----- #
 # training hyperparameters
 BATCH_SIZE = 1024
 EPOCHS = 100
@@ -41,7 +42,7 @@ else:  # CIFAR-100
 
 
 # plot loss/accuracy history
-def plot_diagnostics(history, history_with_conv):
+def plot_diagnostics(history, history_with_conv, plot_name):
     # plot loss
     plt.subplot(211)
     plt.title("Loss")
@@ -67,11 +68,11 @@ def plot_diagnostics(history, history_with_conv):
         label="Validation (with conv)",
     )
 
-    plt.suptitle("ViT: S_16-72")
+    plt.suptitle(f"ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}")
     plt.legend()
     plt.tight_layout()
     plt.show()
-    plt.savefig(f"{WRK_DIR}/plots/{uuid4()}-S_16_72-graph.png")
+    plt.savefig(f"{WRK_DIR}/plots/{plot_name}.png")
 
 
 #  ----- GPU CONFIG ----- #
@@ -98,30 +99,26 @@ def vit_model(x_train, input_shape, add_conv=False):
 
     if add_conv:
         x = Conv2D(
-            filters=2 * PATCH_SIZE,
-            kernel_size=PATCH_SIZE,
-            kernel_initializer="he_normal",
-            activation="elu",
+            filters=PATCH_SIZE,
+            kernel_size=int(PATCH_SIZE * 2),
+            activation="relu",
             padding="SAME",
         )(x)
 
-    x = Preprocessor(
-        num_patches=PATCH_NUM, patch_size=PATCH_SIZE, projection_dims=PROJECT_DIMS
-    )(x)
-
     x = VisionTransformer(
+        num_patches=PATCH_NUM,
+        patch_size=PATCH_SIZE,
         num_encoders=NUM_ENCODERS,
         num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
-        insert_probes=BOOL_PROBES,
     )(x)
     output = x
     return Model(inputs=input, outputs=output)
 
 
 #  ----- MODEL EXECUTION ----- #
-def train_model():
+def train_model(*args):
     # get train/tests
     (train_data, train_labels), (test_data, test_labels) = DATA
 
@@ -153,7 +150,9 @@ def train_model():
     )
 
     # save trained weights for training probes
-    model_with_conv.save_weights(f"{WRK_DIR}/checkpoints/tf/S_18-RES_72-CONV_F32_K18")
+    model_with_conv.save_weights(
+        f"{WRK_DIR}/checkpoints/tf/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-CONV_F{2*PATCH_SIZE}_K{PATCH_SIZE}"
+    )
 
     # compile model (no conv)
     model.compile(
@@ -174,17 +173,43 @@ def train_model():
     )
 
     # save trained weights for training probes
-    model.save_weights(f"{WRK_DIR}/checkpoints/tf/S_18-RES_72-NOCONV")
+    model.save_weights(
+        f"{WRK_DIR}/checkpoints/tf/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-NOCONV"
+    )
 
     # evaluate
     results = model.evaluate(x=test_data, y=test_labels)
     results_with_conv = model_with_conv.evaluate(x=test_data, y=test_labels)
 
     # plot loss & accuracies
-    plot_diagnostics(H.history, H_with_conv.history)
+    plot_diagnostics(H.history, H_with_conv.history, args[0])
 
     diff = results_with_conv[1] - results[1]
     print(f"% diff: {100 * diff}")
+
+def get_EncoderOutputs():
+    # get train/tests
+    (train_data, train_labels), (test_data, test_labels) = DATA 
+    model = vit_model(x_train=train_data, input_shape=(32, 32, 3))
+    print(model.layers)
+
+def main():
+    color.init()
+    print(
+        "===== "
+        + Fore.CYAN
+        + Style.BRIGHT
+        + "Vision Transformer"
+        + Style.RESET_ALL
+        + " : "
+        + Fore.MAGENTA
+        + Style.BRIGHT
+        + "Linear Probing"
+        + Style.RESET_ALL
+        + " ====="
+    )
+    std_plot_name = input("Provide name of plot: ")
+    train_model(std_plot_name)
 
 
 if __name__ == "__main__":
@@ -192,4 +217,4 @@ if __name__ == "__main__":
     if ARGS.kahan:
         gpu_mem_config()
 
-    train_model()
+    main()

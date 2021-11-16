@@ -1,15 +1,12 @@
 import tensorflow as tf
 
-from tensorflow.keras import layers, Sequential
+from tensorflow.keras import layers, Sequential, Model
 from tensorflow.keras.layers import (
     Dense,
     LayerNormalization,
     MultiHeadAttention,
     Dropout,
-    Flatten,
 )
-
-from untrained_probe import Probe
 
 
 def DataAugmentation(img_sz):
@@ -63,13 +60,10 @@ class PatchEncoder(layers.Layer):
         super(PatchEncoder, self).__init__()
         self.projection_dims = projection_dims
         self.num_patches = num_patches
-
-        # self.patch_embed = Conv2D(filters=projection_dims, kernel_size=18, strides=18)
         self.patch_embed = Dense(units=projection_dims)
         self.class_embed = self.add_weight(
             name="CLS", shape=(1, 1, projection_dims), initializer="uniform"
         )
-
         self.pos_embed = self.add_weight(
             name="POS_EMBEDDING", shape=(1, num_patches + 1, projection_dims)
         )
@@ -77,7 +71,6 @@ class PatchEncoder(layers.Layer):
     def call(self, patch):
         # pos = tf.range(start=0, limit=self.num_patches, delta=1)
         patch_embed = self.patch_embed(patch)
-
         cls_embed = tf.broadcast_to(
             self.class_embed, [tf.shape(patch)[0], 1, self.projection_dims]
         )
@@ -101,12 +94,13 @@ class Preprocessor(layers.Layer):
 class FullyConnected(layers.Layer):
     def __init__(self, widths, dropout):
         super(FullyConnected, self).__init__()
+
         self.FC = []
         for width in widths:
             self.FC.append(
-                Dense(units=width, activation=tf.nn.gelu, name="dense_" + str(width))
+                Dense(units=width, activation=tf.nn.gelu, name=f"dense_{width}")
             )
-            self.FC.append(Dropout(dropout, name="dropout_" + str(width)))
+            self.FC.append(Dropout(dropout, name=f"dropout_{width}"))
 
     def call(self, x):
         for fc_layer in self.FC:
@@ -114,54 +108,59 @@ class FullyConnected(layers.Layer):
         return x
 
 
-class VisionTransformer(layers.Layer):
-    def __init__(
-        self, num_encoders, num_heads, num_classes, projection_dims, insert_probes
-    ):
-        super(VisionTransformer, self).__init__()
-
-        self.probes_out = [0] * num_encoders
-
-        self.num_classes = num_classes
-        self.insert_probes = insert_probes
+class Encoder(layers.Layer):
+    def __init__(self, num_encoders, num_heads, projection_dims):
+        super(Encoder, self).__init__()
         self.num_encoders = num_encoders
-        self.num_heads = num_heads
-        self.projection_dims = projection_dims
-        self.transformer_units = [
-            4 * projection_dims,
-            projection_dims,
-        ]
-
         self.Norm1 = LayerNormalization(epsilon=1e-6)
         self.Norm2 = LayerNormalization(epsilon=1e-6)
-        self.Norm3 = LayerNormalization(epsilon=1e-6)
-
         self.AttentionHead = MultiHeadAttention(
-            num_heads=self.num_heads, key_dim=int(self.projection_dims / 6), dropout=0.1
+            num_heads=num_heads, key_dim=int(projection_dims / 6), dropout=0.1
         )
-
-        self.MLP_Encoder = FullyConnected(self.transformer_units, 0.1)
-        self.Flatten = Flatten()
-        self.Dropout = Dropout(0.5)
-        self.Head = Dense(units=num_classes)
+        dense_widths = [4 * projection_dims, projection_dims]
+        self.MLP_Encoder = FullyConnected(dense_widths, dropout=0.1)
 
     def call(self, input):
-        for id in range(self.num_encoders):
+        for _ in range(self.num_encoders):
             x = self.Norm1(input)
             attention_out = self.AttentionHead(x, x)
             sum_1 = attention_out + input
             x = self.Norm2(x)
             x = self.MLP_Encoder(x)
             x += sum_1
-            if self.insert_probes:
-                tf.stop_gradient(Probe(self.num_classes, id)(x))
             input = x
+        return x
 
+
+class VisionTransformer(Model):
+    def __init__(
+        self,
+        num_patches,
+        patch_size,
+        num_encoders,
+        num_heads,
+        num_classes,
+        projection_dims,
+    ):
+        super(VisionTransformer, self).__init__()
+        self.Preprocessor = Preprocessor(
+            num_patches=num_patches,
+            patch_size=patch_size,
+            projection_dims=projection_dims,
+        )
+        self.Encoder = Encoder(
+            num_encoders=num_encoders,
+            num_heads=num_heads,
+            projection_dims=projection_dims,
+        )
+        self.Norm3 = LayerNormalization(epsilon=1e-6)
+        self.Head = Dense(units=num_classes)
+
+    def call(self, x):
+        x = self.Preprocessor(x)
+        x = self.Encoder(x)
         x = self.Norm3(x)
         x = self.Head(x[:, 0])
-
-        if self.insert_probes:
-            return (x, tf.convert_to_tensor(self.probes_out, dtype=tf.float32))
         return x
 
 

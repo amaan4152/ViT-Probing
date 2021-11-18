@@ -11,6 +11,7 @@ print(
     + "]: dependencies..."
 )
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
@@ -150,7 +151,7 @@ def get_EncoderOutputs(add_conv):
     latest = tf.train.latest_checkpoint("checkpoints/tf/chkpt-1/")
     model.load_weights(latest)
     model(train[0])
-    x_train, y_train = model.encoder_out, train[1]
+    x_train, y_train = model.outputs, train[1]
     model(test[0])
     x_test, y_test = model.encoder_out, test[1]
     return (x_train, y_train, x_test, y_test)
@@ -188,8 +189,8 @@ def main():
         std_plot_name = input("Provide name of plot: ")
         train_model(std_plot_name)
     else:
-        train_probes(get_EncoderOutputs(False))
-        # train_probes(get_EncoderOutputs(True))
+        #train_probes(get_EncoderOutputs(False))
+        train_probes(get_EncoderOutputs(True))
 
 
 # ----- UTILITY FUNCTIONS ----- #

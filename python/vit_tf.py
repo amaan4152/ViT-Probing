@@ -166,12 +166,18 @@ class VisionTransformer(Model):
         self.Head = Dense(units=num_classes)
 
     def call(self, x):
+        layer_features = []
         x = self.DataAugmentation(x)
         if self.layer:
             x = self.layer(x)
+            layer_features.append(x)
+            layer_features = np.array(layer_features)
         x = self.Preprocessor(x)
         x = self.Encoder(x)
-        self.encoder_out = self.Encoder.encoder_features
+        if self.layer:
+            self.outputs = np.concatenate((layer_features, self.Encoder.encoder_features), axis=0)
+        else:
+            self.outputs = self.Encoder.encoder_features
         x = self.Norm3(x)
         x = self.Head(x[:, 0])
         return x

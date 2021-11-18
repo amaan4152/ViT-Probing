@@ -132,7 +132,7 @@ class Encoder(layers.Layer):
             input = x
             encoder_features.append(input)
         self.encoder_features = encoder_features
-        #self.encoder_features = np.array(encoder_features)
+        # self.encoder_features = np.array(encoder_features)
         return x
 
 

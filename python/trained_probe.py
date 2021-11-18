@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Flatten, Dense
 import numpy as np
 import matplotlib.pyplot as plt
 
-BATCH_SIZE = 100
+BATCH_SIZE = 4096
 
 # ----------Import data----------#
 """
@@ -27,12 +27,12 @@ def train_probes(data):
     x_train, y_train, x_test, y_test = data
 
     # ----------Create Probes----------#
-    NUM_PROBES = 13
+    NUM_PROBES = len(x_train)
+    print(f"NUM PROBES: {NUM_PROBES}")
     probe_list = []
 
     for _ in range(NUM_PROBES):
         probe = tf.keras.Sequential([Flatten(), Dense(10, activation="softmax")])
-
         probe_list.append(probe)
 
     # ----------Train Probes----------#
@@ -52,7 +52,7 @@ def train_probes(data):
             y_train,
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
-            steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE), #TODO
+            steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE),
             validation_split=0.1,
             callbacks=[call_ES],
         )

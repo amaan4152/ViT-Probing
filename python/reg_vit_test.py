@@ -11,7 +11,6 @@ print(
     + "]: dependencies..."
 )
 import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
@@ -40,7 +39,7 @@ EPOCHS = 100
 
 # ViT hyperparameters
 IMAGE_SIZE = 32
-PATCH_SIZE = 8
+PATCH_SIZE = 16
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 32
 NUM_ENCODERS = 12
@@ -59,8 +58,8 @@ def vit_model(x_train, add_conv=False):
     test_layer = None
     if add_conv:
         test_layer = Conv2D(
-            filters=PATCH_SIZE,
-            kernel_size=int(PATCH_SIZE),
+            filters=2 * 4,
+            kernel_size=int(4 / 2),
             activation="relu",
             padding="SAME",
         )
@@ -88,7 +87,7 @@ def train_model(*args):
     model_with_conv = vit_model(x_train=train_data, add_conv=True)
     lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
-    call_ES = EarlyStopping(patience=5)
+    call_ES = EarlyStopping(patience=7)
 
     # compile model (with conv)
     model_with_conv.compile(
@@ -148,14 +147,13 @@ def train_model(*args):
 def get_EncoderOutputs(add_conv):
     train, test = DATA
     model = vit_model(x_train=train[0], add_conv=add_conv)
-    latest = tf.train.latest_checkpoint("checkpoints/tf/chkpt-1/")
+    chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
+    latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
-    model(train[0][:1000])
-    x_train, y_train = model.outputs, train[1][:1000]
-    model(test[0][:1000])
-    x_test, y_test = model.outputs, test[1][:1000]
-    #print(x_train[3].shape)
-    print(x_test[0].shape)
+    model(train[0])
+    x_train, y_train = model.outputs, train[1]
+    model(test[0])
+    x_test, y_test = model.outputs, test[1]
     return (x_train, y_train, x_test, y_test)
 
 
@@ -191,7 +189,6 @@ def main():
         std_plot_name = input("Provide name of plot: ")
         train_model(std_plot_name)
     else:
-        #train_probes(get_EncoderOutputs(False))
         train_probes(get_EncoderOutputs(True))
 
 
@@ -207,6 +204,7 @@ def diradjust(fn):
     def wrapper(*args, **kwargs):
         wrapper.calls += 1
         path = f"{WRK_DIR}/checkpoints/tf/chkpt-{wrapper.calls}/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-{kwargs['config']}"
+        print(f"=== NEW CHECKPOINT ADDED: chkpt-{wrapper.calls} ===")
         return fn(model=kwargs["model"], path=path)
 
     wrapper.calls = 0

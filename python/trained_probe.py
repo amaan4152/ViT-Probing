@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Flatten, Dense
 import numpy as np
 import matplotlib.pyplot as plt
 
-BATCH_SIZE = 1024
+BATCH_SIZE = 100
 
 # ----------Import data----------#
 """
@@ -27,7 +27,7 @@ def train_probes(data):
     x_train, y_train, x_test, y_test = data
 
     # ----------Create Probes----------#
-    NUM_PROBES = 12
+    NUM_PROBES = 13
     probe_list = []
 
     for _ in range(NUM_PROBES):
@@ -48,11 +48,11 @@ def train_probes(data):
         )
 
         probe.fit(
-            x_train[probe_num - 1, :],
+            x_train[probe_num - 1][:],
             y_train,
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
-            steps_per_epoch=(0.9 * x_train.shape[1] // BATCH_SIZE),
+            steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE), #TODO
             validation_split=0.1,
             callbacks=[call_ES],
         )
@@ -62,9 +62,9 @@ def train_probes(data):
     # ----------Test Probes----------#
     probe_num = 1
     probe_accuracies = []
-    for _ in probe_list:
+    for probe in probe_list:
         print("Evaluating Probe " + str(probe_num) + "!")
-        result = probe.evaluate(x_test[probe_num - 1, :], y_test)
+        result = probe.evaluate(x_test[probe_num - 1], y_test)
         accuracy = np.asarray(result[1], dtype=np.float32) * 100
         probe_accuracies.append(accuracy)
         print("Evaluation of Probe " + str(probe_num) + " COMPLETED!")
@@ -75,7 +75,8 @@ def train_probes(data):
     encoders = range(1, NUM_PROBES + 1)
     plt.figure()
     plt.title("Trained ViT Probe Accuracies (CIFAR10)")
-    plt.xlabel("Encoder #")
+    plt.xlabel("Probe #")
     plt.ylabel("Accuracy [%]")
     plt.plot(encoders, probe_accuracies)
+    plt.show()
     plt.savefig("trained_probes.png")

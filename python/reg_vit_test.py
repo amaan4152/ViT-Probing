@@ -150,10 +150,12 @@ def get_EncoderOutputs(add_conv):
     model = vit_model(x_train=train[0], add_conv=add_conv)
     latest = tf.train.latest_checkpoint("checkpoints/tf/chkpt-1/")
     model.load_weights(latest)
-    model(train[0])
-    x_train, y_train = model.outputs, train[1]
-    model(test[0])
-    x_test, y_test = model.encoder_out, test[1]
+    model(train[0][:1000])
+    x_train, y_train = model.outputs, train[1][:1000]
+    model(test[0][:1000])
+    x_test, y_test = model.outputs, test[1][:1000]
+    #print(x_train[3].shape)
+    print(x_test[0].shape)
     return (x_train, y_train, x_test, y_test)
 
 

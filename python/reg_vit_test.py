@@ -1,7 +1,6 @@
 import colorama as color
 from colorama import Fore
 from colorama import Style
-from tensorflow.python.keras.backend import batch_normalization
 
 print(
     "["
@@ -56,15 +55,15 @@ else:  # CIFAR-100
 
 #   ----- MODEL SETUP ----- #
 def vit_model(x_train, add_conv=False):
-    test_layer = None
+    t_layer = None
     if add_conv:
-        test_layer = Conv2D(
+        t_layer = Conv2D(
             filters=16,
             kernel_size=int(3),
             activation="relu",
             padding="VALID",
         )
-        #test_layer = batch_normalization
+        # test_layer = batch_normalization
     model = VisionTransformer(
         x_train=x_train,
         image_size=IMAGE_SIZE,
@@ -74,7 +73,7 @@ def vit_model(x_train, add_conv=False):
         num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
-        layer=test_layer,
+        test_layer=t_layer,
     )
     return model
 
@@ -111,7 +110,7 @@ def train_model(*args):
     )
 
     # save trained weights for training probes
-    save_weights(model=model, config="CONV")
+    save_weights(model=model_with_conv, config="CONV")
 
     # compile model (no conv)
     model.compile(
@@ -152,18 +151,18 @@ def get_EncoderOutputs(add_conv):
     chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
-    model(train[0][:10000])
-    #for o in model.outputs:
+    model(train[0])
+    # for o in model.outputs:
     #    print(o.shape)
-    #model.summary()
-    #input_image = train[0][0]
-    #plt.imshow(input_image)
-    #plt.show()
-    #conv_output = model.outputs[1][0, :, :, 0]
-    #plt.imshow(conv_output)
-    #plt.show()
-    #print("Yes")
-    #print(model.outputs[0].shape)
+    # model.summary()
+    # input_image = train[0][0]
+    # plt.imshow(input_image)
+    # plt.show()
+    # conv_output = model.outputs[1][0, :, :, 0]
+    # plt.imshow(conv_output)
+    # plt.show()
+    # print("Yes")
+    # print(model.outputs[0].shape)
     x_train, y_train = model.outputs, train[1]
     model(test[0])
     x_test, y_test = model.outputs, test[1]

@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, Sequential, Model
 from tensorflow.keras.layers import (
@@ -147,12 +146,12 @@ class VisionTransformer(Model):
         num_heads,
         num_classes,
         projection_dims,
-        layer=None,
+        test_layer=None,
     ):
         super(VisionTransformer, self).__init__()
         self.DataAugmentation = DataAugmentation(image_size)
         self.DataAugmentation.layers[0].adapt(x_train)
-        self.test_layer = layer
+        self.test_layer = test_layer
         self.Preprocessor = Preprocessor(
             num_patches=num_patches,
             patch_size=patch_size,
@@ -173,8 +172,9 @@ class VisionTransformer(Model):
         x = self.DataAugmentation(x)
         if self.test_layer:
             x = self.test_layer(x)
+            print(x.shape)
             layer_features.append(x)
-            #layer_features = np.array(layer_features)
+            # layer_features = np.array(layer_features)
         x = self.Preprocessor(x)
         layer_features.append(x)
         outputs.extend(layer_features)

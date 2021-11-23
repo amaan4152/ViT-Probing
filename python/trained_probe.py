@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.layers import Dense
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -33,6 +33,7 @@ def train_probes(data):
 
     for _ in range(NUM_PROBES):
         # Try changing this (don't use sequential)
+        # flatten: untrustworthy!
         probe = tf.keras.Sequential([Dense(10, activation="softmax")])
         probe_list.append(probe)
 
@@ -53,8 +54,8 @@ def train_probes(data):
         )
 
         probe.fit(
-            tf.reshape(x_train[probe_num - 1][:10000], (10000, -1)),
-            y_train[:10000],
+            tf.reshape(x_train[probe_num - 1], (50000, -1)),
+            y_train,
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
             steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE),

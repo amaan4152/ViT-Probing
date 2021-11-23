@@ -32,16 +32,19 @@ def train_probes(data):
     probe_list = []
 
     for _ in range(NUM_PROBES):
-        probe = tf.keras.Sequential([Flatten(), Dense(10, activation="softmax")])
+        # Try changing this (don't use sequential)
+        probe = tf.keras.Sequential([Dense(10, activation="softmax")])
         probe_list.append(probe)
 
     # ----------Train Probes----------#
     for o in x_train:
         print(o.shape)
+
     EPOCHS = 100
     probe_num = 1
     call_ES = EarlyStopping(patience=5)
     for probe in probe_list:
+
         print(f"=== TRAINING PROBE #{probe_num}===")
         probe.compile(
             optimizer="adam",
@@ -50,7 +53,7 @@ def train_probes(data):
         )
 
         probe.fit(
-            x_train[probe_num - 1][:10000],
+            tf.reshape(x_train[probe_num - 1][:10000], (10000, -1)),
             y_train[:10000],
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
@@ -66,7 +69,7 @@ def train_probes(data):
     probe_accuracies = []
     for probe in probe_list:
         print("Evaluating Probe " + str(probe_num) + "!")
-        result = probe.evaluate(x_test[probe_num - 1], y_test)
+        result = probe.evaluate(tf.reshape(x_test[probe_num - 1], (10000, -1)), y_test)
         accuracy = np.asarray(result[1], dtype=np.float32) * 100
         probe_accuracies.append(accuracy)
         print("Evaluation of Probe " + str(probe_num) + " COMPLETED!")

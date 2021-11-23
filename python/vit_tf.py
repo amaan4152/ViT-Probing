@@ -152,7 +152,7 @@ class VisionTransformer(Model):
         super(VisionTransformer, self).__init__()
         self.DataAugmentation = DataAugmentation(image_size)
         self.DataAugmentation.layers[0].adapt(x_train)
-        self.layer = layer
+        self.test_layer = layer
         self.Preprocessor = Preprocessor(
             num_patches=num_patches,
             patch_size=patch_size,
@@ -171,8 +171,8 @@ class VisionTransformer(Model):
         outputs = []
         layer_features.append(x)
         x = self.DataAugmentation(x)
-        if self.layer:
-            x = self.layer(x)
+        if self.test_layer:
+            x = self.test_layer(x)
             layer_features.append(x)
             #layer_features = np.array(layer_features)
         x = self.Preprocessor(x)

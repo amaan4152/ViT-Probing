@@ -1,6 +1,7 @@
 import colorama as color
 from colorama import Fore
 from colorama import Style
+from tensorflow.python.keras.backend import batch_normalization
 
 print(
     "["
@@ -39,7 +40,7 @@ EPOCHS = 100
 
 # ViT hyperparameters
 IMAGE_SIZE = 32
-PATCH_SIZE = 16
+PATCH_SIZE = 15
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
 PROJECT_DIMS = 32
 NUM_ENCODERS = 12
@@ -58,11 +59,12 @@ def vit_model(x_train, add_conv=False):
     test_layer = None
     if add_conv:
         test_layer = Conv2D(
-            filters=2 * 4,
-            kernel_size=int(4 / 2),
+            filters=16,
+            kernel_size=int(3),
             activation="relu",
-            padding="SAME",
+            padding="VALID",
         )
+        #test_layer = batch_normalization
     model = VisionTransformer(
         x_train=x_train,
         image_size=IMAGE_SIZE,
@@ -150,7 +152,18 @@ def get_EncoderOutputs(add_conv):
     chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
-    model(train[0])
+    model(train[0][:10000])
+    #for o in model.outputs:
+    #    print(o.shape)
+    #model.summary()
+    #input_image = train[0][0]
+    #plt.imshow(input_image)
+    #plt.show()
+    #conv_output = model.outputs[1][0, :, :, 0]
+    #plt.imshow(conv_output)
+    #plt.show()
+    #print("Yes")
+    #print(model.outputs[0].shape)
     x_train, y_train = model.outputs, train[1]
     model(test[0])
     x_test, y_test = model.outputs, test[1]

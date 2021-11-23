@@ -169,13 +169,15 @@ class VisionTransformer(Model):
     def call(self, x):
         layer_features = []
         outputs = []
+        layer_features.append(x)
         x = self.DataAugmentation(x)
         if self.layer:
             x = self.layer(x)
             layer_features.append(x)
-            layer_features = np.array(layer_features)
-            outputs.extend(layer_features)
+            #layer_features = np.array(layer_features)
         x = self.Preprocessor(x)
+        layer_features.append(x)
+        outputs.extend(layer_features)
         x = self.Encoder(x)
         outputs.extend(self.Encoder.encoder_features)
         self.outputs = outputs

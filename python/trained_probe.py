@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Flatten, Dense
 import numpy as np
 import matplotlib.pyplot as plt
 
-BATCH_SIZE = 4096
+BATCH_SIZE = 1024
 
 # ----------Import data----------#
 """
@@ -36,6 +36,8 @@ def train_probes(data):
         probe_list.append(probe)
 
     # ----------Train Probes----------#
+    for o in x_train:
+        print(o.shape)
     EPOCHS = 100
     probe_num = 1
     call_ES = EarlyStopping(patience=5)
@@ -48,8 +50,8 @@ def train_probes(data):
         )
 
         probe.fit(
-            x_train[probe_num - 1][:],
-            y_train,
+            x_train[probe_num - 1][:10000],
+            y_train[:10000],
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
             steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE),

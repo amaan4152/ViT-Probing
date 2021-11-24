@@ -201,7 +201,7 @@ def main():
         std_plot_name = input("Provide name of plot: ")
         train_model(std_plot_name)
     else:
-        train_probes(get_EncoderOutputs(True))
+        train_probes(get_EncoderOutputs(False))
 
 
 # ----- UTILITY FUNCTIONS ----- #

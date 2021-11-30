@@ -2,7 +2,6 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Dense
 import numpy as np
-import matplotlib.pyplot as plt
 
 BATCH_SIZE = 1024
 
@@ -38,9 +37,6 @@ def train_probes(data):
         probe_list.append(probe)
 
     # ----------Train Probes----------#
-    for o in x_train:
-        print(o.shape)
-
     EPOCHS = 100
     probe_num = 1
     call_ES = EarlyStopping(patience=5)
@@ -79,10 +75,4 @@ def train_probes(data):
 
     # ----------Print Results----------#
     encoders = range(1, NUM_PROBES + 1)
-    plt.figure()
-    plt.title("Trained ViT Probe Accuracies (CIFAR10)")
-    plt.xlabel("Probe #")
-    plt.ylabel("Accuracy [%]")
-    plt.plot(encoders, probe_accuracies)
-    plt.show()
-    plt.savefig("trained_probes.png")
+    return {"x": encoders, "y": probe_accuracies}

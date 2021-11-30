@@ -54,16 +54,16 @@ else:  # CIFAR-100
 
 
 #   ----- MODEL SETUP ----- #
-def vit_model(x_train, add_conv=False):
-    t_layer = None
-    if add_conv:
-        t_layer = Conv2D(
+def vit_model(x_train, **kwargs):
+    extra_layer = None
+    if kwargs["add_conv"]:
+        extra_layer = Conv2D(
             filters=16,
             kernel_size=int(3),
             activation="relu",
             padding="VALID",
         )
-        # test_layer = batch_normalization
+
     model = VisionTransformer(
         x_train=x_train,
         image_size=IMAGE_SIZE,
@@ -73,44 +73,21 @@ def vit_model(x_train, add_conv=False):
         num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
-        test_layer=t_layer,
+        test_layer=extra_layer,
     )
     return model
 
 
 #  ----- MODEL EXECUTION ----- #
-def train_model(*args):
+def train_model(*args, **kwargs):
     # get train/tests
     (train_data, train_labels), (test_data, test_labels) = DATA
 
     # init models
-    model = vit_model(x_train=train_data)
-    model_with_conv = vit_model(x_train=train_data, add_conv=True)
+    model = vit_model(x_train=train_data, add_conv=kwargs["add_conv"])
     lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
     call_ES = EarlyStopping(patience=7)
-
-    # compile model (with conv)
-    model_with_conv.compile(
-        optimizer=adam,
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=["accuracy"],
-    )
-    model_with_conv.build(input_shape=(32, 32, 3))
-    model_with_conv.summary()
-
-    # fit model (with conv)
-    H_with_conv = model_with_conv.fit(
-        x=train_data,
-        y=train_labels,
-        batch_size=BATCH_SIZE,
-        epochs=EPOCHS,
-        validation_split=0.1,
-        callbacks=[call_ES],
-    )
-
-    # save trained weights for training probes
-    save_weights(model=model_with_conv, config="CONV")
 
     # compile model (no conv)
     model.compile(
@@ -132,17 +109,12 @@ def train_model(*args):
     )
 
     # save trained weights for training probes
-    save_weights(model=model, config="NOCONV")
+    save_weights(model=model, config=kwargs["config"])
 
     # evaluate
     results = model.evaluate(x=test_data, y=test_labels)
-    results_with_conv = model_with_conv.evaluate(x=test_data, y=test_labels)
 
-    # plot loss & accuracies
-    plot_diagnostics(H.history, H_with_conv.history, args[0])
-
-    diff = results_with_conv[1] - results[1]
-    print(f"% diff: {100 * diff}")
+    return H, results
 
 
 def get_EncoderOutputs(add_conv):
@@ -152,17 +124,6 @@ def get_EncoderOutputs(add_conv):
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
     model(train[0])
-    # for o in model.outputs:
-    #    print(o.shape)
-    # model.summary()
-    # input_image = train[0][0]
-    # plt.imshow(input_image)
-    # plt.show()
-    # conv_output = model.outputs[1][0, :, :, 0]
-    # plt.imshow(conv_output)
-    # plt.show()
-    # print("Yes")
-    # print(model.outputs[0].shape)
     x_train, y_train = model.outputs, train[1]
     model(test[0])
     x_test, y_test = model.outputs, test[1]
@@ -199,9 +160,30 @@ def main():
 
     if choice == "vit":
         std_plot_name = input("Provide name of plot: ")
-        train_model(std_plot_name)
+        H, results = train_model(add_conv=False, config="NOCONV")
+        H_conv, conv_results = train_model(add_conv=True, config="CONV")
+
+        diff = conv_results[1] - results[1]
+        plot_diagnostics(H, H_conv, std_plot_name)
+        print(f"% diff: {diff}")
+
     else:
-        train_probes(get_EncoderOutputs(False))
+        data = train_probes(get_EncoderOutputs(add_conv=False))
+        conv_data = train_probes(get_EncoderOutputs(add_conv=True))
+        plt.figure()
+        plt.suptitle(f"CIFAR-10 Probes ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}")
+        plt.xlabel("Probe #")
+        plt.xticks(data["x"])
+        plt.ylim((0, 80))
+        plt.ylabel("Accuracy [%]")
+        plt.plot(data["x"], data["y"], color="orange", label="No conv")
+        plt.plot(
+            conv_data["x"], conv_data["y"], "--", color="orange", label="With conv"
+        )
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        plt.savefig("trained_probes.png")
 
 
 # ----- UTILITY FUNCTIONS ----- #

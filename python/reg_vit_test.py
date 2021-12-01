@@ -160,9 +160,9 @@ def main():
 
     if choice == "vit":
         std_plot_name = input("Provide name of plot: ")
-        H, results = train_model(add_conv=False, config="NOCONV")
         H_conv, conv_results = train_model(add_conv=True, config="CONV")
-
+        H, results = train_model(add_conv=False, config="NOCONV")
+        
         diff = conv_results[1] - results[1]
         plot_diagnostics(H, H_conv, std_plot_name)
         print(f"% diff: {diff}")

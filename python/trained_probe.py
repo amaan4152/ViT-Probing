@@ -33,7 +33,7 @@ def train_probes(data):
     for _ in range(NUM_PROBES):
         # Try changing this (don't use sequential)
         # flatten: untrustworthy!
-        probe = tf.keras.Sequential([Dense(10, activation="softmax")])
+        probe = tf.keras.Sequential([Dense(32, activation='relu'), Dense(10, activation="softmax")])
         probe_list.append(probe)
 
     # ----------Train Probes----------#
@@ -50,8 +50,8 @@ def train_probes(data):
         )
 
         probe.fit(
-            tf.reshape(x_train[probe_num - 1], (50000, -1)),
-            y_train,
+            tf.reshape(x_train[probe_num - 1][:10000], (10000, -1)),
+            y_train[:10000],
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
             steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE),

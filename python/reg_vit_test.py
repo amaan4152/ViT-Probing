@@ -160,12 +160,14 @@ def main():
 
     if choice == "vit":
         std_plot_name = input("Provide name of plot: ")
-        H_conv, conv_results = train_model(add_conv=True, config="CONV")
-        H, results = train_model(add_conv=False, config="NOCONV")
-        
+        H_conv, conv_results = train_model(
+            add_conv=True, config="CONV"
+        )  # saved in chkpt-1/
+        H, results = train_model(add_conv=False, config="NOCONV")  # saved in chkpt-2/
+
         diff = conv_results[1] - results[1]
-        plot_diagnostics(H, H_conv, std_plot_name)
-        print(f"% diff: {diff}")
+        plot_diagnostics(H.history, H_conv.history, std_plot_name)
+        print(f"% diff: {100 * diff}")
 
     else:
         data = train_probes(get_EncoderOutputs(add_conv=False))

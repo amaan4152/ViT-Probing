@@ -11,6 +11,8 @@ print(
     + "]: dependencies..."
 )
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.callbacks import EarlyStopping
@@ -21,7 +23,7 @@ from os import getcwd
 
 # 3rd-Party scripts
 from CLI_parser import CLI_Parser
-from trained_probe import train_probes
+from train_probes import train_probes
 from vit_tf import VisionTransformer
 
 print("[" + Fore.GREEN + Style.BRIGHT + "SUCCESS" + Style.RESET_ALL + "]: load")
@@ -118,11 +120,19 @@ def train_model(*args, **kwargs):
 
 
 def get_EncoderOutputs(add_conv):
+    """
+    Compose train and test data for probes based on output of selected layers
+    established inside the ViT model class
+    """
     train, test = DATA
     model = vit_model(x_train=train[0], add_conv=add_conv)
+
+    # get latest checkpoint weights for both model types
     chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
+
+    # generate train/test dataset
     model(train[0])
     x_train, y_train = model.outputs, train[1]
     model(test[0])
@@ -170,33 +180,75 @@ def main():
         print(f"% diff: {100 * diff}")
 
     else:
+        std_plot_name = input("Provide name of plot: ")
         data = train_probes(get_EncoderOutputs(add_conv=False))
         conv_data = train_probes(get_EncoderOutputs(add_conv=True))
-        plt.figure()
-        plt.suptitle(f"CIFAR-10 Probes ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}")
+
+        # label preparation
+        no_conv_labels = [
+            "Input",
+            "Prep",
+        ]
+        conv_labels = ["Input", "Conv", "Prep"]
+        for i in range(NUM_ENCODERS):
+            no_conv_labels.append(f"Enc{i}")
+            conv_labels.append(f"Enc{i}")
+
+        # instantiate figure
+        plt.figure(figsize=(15, 17))
+        plt.title(f"CIFAR-10 Probes ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}", y=1.04)
+
+        # establish figure characteristics
         plt.xlabel("Probe #")
-        plt.xticks(data["x"])
-        plt.ylim((0, 80))
+        plt.xticks(conv_data["x"])
+        plt.yscale("function", functions=(forward, inverse))
         plt.ylabel("Accuracy [%]")
-        plt.plot(data["x"], data["y"], color="orange", label="No conv")
-        plt.plot(
-            conv_data["x"], conv_data["y"], "--", color="orange", label="With conv"
-        )
+
+        ax = plt.gca()
+        max_y = np.max([np.max(data["y"]), np.max(conv_data["y"])])
+        ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1) ** 2))
+        ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1)))
+
+        # plot probe data
+        plt.scatter(data["x"], data["y"], marker="x", label="No conv")
+        plt.scatter(conv_data["x"], conv_data["y"], marker="o", label="With conv")
+
+        # label points
+        for i, txt in enumerate(no_conv_labels):
+            x = data["x"][i]
+            y = data["y"][i]
+            plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+
+        for i, txt in enumerate(conv_labels):
+            x = conv_data["x"][i]
+            y = conv_data["y"][i]
+            plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+
+        # tidy up plot
+        plt.grid(True)
         plt.legend()
         plt.tight_layout()
         plt.show()
-        plt.savefig("trained_probes.png")
+        plt.savefig(std_plot_name)
 
 
 # ----- UTILITY FUNCTIONS ----- #
-# https://stackoverflow.com/questions/21716940/is-there-a-way-to-track-the-number-of-times-a-function-is-called/21717084
-"""
-    Custom decorator function to generate new directories for each saved checkpoint set
-    chkpt-# => dir of every associated save_weights call
-"""
+def forward(y):
+    return y ** (1 / 2)
+
+
+def inverse(y):
+    return y ** 2
 
 
 def diradjust(fn):
+    """
+    Custom decorator function to generate new directories for each saved checkpoint set
+    chkpt-# => dir of every associated save_weights call
+
+    Citation: https://stackoverflow.com/questions/21716940/is-there-a-way-to-track-the-number-of-times-a-function-is-called/21717084
+    """
+
     def wrapper(*args, **kwargs):
         wrapper.calls += 1
         path = f"{WRK_DIR}/checkpoints/tf/chkpt-{wrapper.calls}/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-{kwargs['config']}"
@@ -212,9 +264,12 @@ def save_weights(*args, **kwargs):
     kwargs["model"].save_weights(kwargs["path"])
 
 
-# alter GPU VRAM limit for handling large tensors (applies to small patch sizes)
-# https://starriet.medium.com/tensorflow-2-0-wanna-limit-gpu-memory-10ad474e2528
 def gpu_mem_config():
+    """
+    Alter GPU VRAM limit for handling large tensors (applies to small patch sizes)
+
+    Citation: https://starriet.medium.com/tensorflow-2-0-wanna-limit-gpu-memory-10ad474e2528
+    """
     gpus = tf.config.experimental.list_physical_devices("GPU")
     if gpus:
         try:
@@ -224,8 +279,10 @@ def gpu_mem_config():
             print(e)
 
 
-# plot loss/accuracy history
 def plot_diagnostics(history, history_with_conv, plot_name):
+    """
+    Plot accuracy and loss diagnostics of ViT with convolution and without convolution
+    """
     # plot loss
     plt.subplot(211)
     plt.title("Loss")

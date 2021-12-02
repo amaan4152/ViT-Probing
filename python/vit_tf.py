@@ -172,7 +172,6 @@ class VisionTransformer(Model):
         x = self.DataAugmentation(x)
         if self.test_layer:
             x = self.test_layer(x)
-            print(x.shape)
             layer_features.append(x)
             # layer_features = np.array(layer_features)
         x = self.Preprocessor(x)

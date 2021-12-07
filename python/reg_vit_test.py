@@ -234,11 +234,15 @@ def main():
 
 # ----- UTILITY FUNCTIONS ----- #
 def forward(y):
-    return y ** (1 / 2)
+    """https://matplotlib.org/stable/gallery/scales/scales.html#sphx-glr-gallery-scales-scales-py"""
+    y = np.deg2rad(y)
+    return np.rad2deg(np.log(np.abs(np.tan(y) + 1.0 / np.cos(y))))
 
 
 def inverse(y):
-    return y ** 2
+    """https://matplotlib.org/stable/gallery/scales/scales.html#sphx-glr-gallery-scales-scales-py"""
+    y = np.deg2rad(y)
+    return np.rad2deg(np.arctan(np.sinh(y)))
 
 
 def diradjust(fn):

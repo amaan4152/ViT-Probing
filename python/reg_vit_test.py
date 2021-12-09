@@ -25,6 +25,7 @@ from os import getcwd
 from CLI_parser import CLI_Parser
 from train_probes import train_probes
 from vit_tf import VisionTransformer
+from conv_tf import PatchConv
 
 print("[" + Fore.GREEN + Style.BRIGHT + "SUCCESS" + Style.RESET_ALL + "]: load")
 
@@ -79,6 +80,31 @@ def vit_model(x_train, **kwargs):
     )
     return model
 
+def conv_model(x_train, **kwargs):
+    extra_layer = None
+    if kwargs["add_conv"]:
+        extra_layer = Conv2D(
+            filters=16,
+            kernel_size=int(3),
+            activation="relu",
+            padding="VALID",
+        )
+
+    model = PatchConv(
+        x_train=x_train,
+        image_size=IMAGE_SIZE,
+        num_patches=PATCH_NUM,
+        patch_size=PATCH_SIZE,
+        num_encoders=NUM_ENCODERS,
+        num_heads=NUM_HEADS,
+        num_classes=NUM_CLASSES,
+        projection_dims=PROJECT_DIMS,
+        test_layer=extra_layer,
+    )
+    return model
+
+
+
 
 #  ----- MODEL EXECUTION ----- #
 def train_model(*args, **kwargs):
@@ -86,7 +112,10 @@ def train_model(*args, **kwargs):
     (train_data, train_labels), (test_data, test_labels) = DATA
 
     # init models
-    model = vit_model(x_train=train_data, add_conv=kwargs["add_conv"])
+    if kwargs["model_type"] == "vit_model":
+        model = vit_model(x_train=train_data, add_conv=kwargs["add_conv"])
+    else:
+        model = conv_model(x_train=train_data, add_conv=kwargs["add_conv"])
     lr_sched = PolynomialDecay(power=1, initial_learning_rate=(8e-4), decay_steps=10000)
     adam = Adam(learning_rate=lr_sched)
     call_ES = EarlyStopping(patience=7)
@@ -100,7 +129,7 @@ def train_model(*args, **kwargs):
     model.build(input_shape=(32, 32, 3))
     model.summary()
 
-    # fit (no conv)
+    # fit
     H = model.fit(
         x=train_data,
         y=train_labels,
@@ -119,13 +148,16 @@ def train_model(*args, **kwargs):
     return H, results
 
 
-def get_EncoderOutputs(add_conv):
+def get_EncoderOutputs(add_conv, model_type):
     """
     Compose train and test data for probes based on output of selected layers
     established inside the ViT model class
     """
     train, test = DATA
-    model = vit_model(x_train=train[0], add_conv=add_conv)
+    if model_type == "vit_model":
+        model = vit_model(x_train=train[0], add_conv=add_conv)
+    else:
+        model = conv_model(x_train=train[0], add_conv=add_conv)
 
     # get latest checkpoint weights for both model types
     chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
@@ -156,8 +188,8 @@ def main():
         + " ====="
     )
     while True:
-        choice = input("Train [vit] or [probes]? ")
-        if choice.lower() in ("vit", "probes"):
+        choice = input("Train [vit/conv] or [probes]? ")
+        if choice.lower() in ("vit", "conv", "probes"):
             break
         print(
             "["
@@ -171,28 +203,52 @@ def main():
     if choice == "vit":
         std_plot_name = input("Provide name of plot: ")
         H_conv, conv_results = train_model(
-            add_conv=True, config="CONV"
+            add_conv=True, config="CONV", model_type="vit"
         )  # saved in chkpt-1/
         H, results = train_model(add_conv=False, config="NOCONV")  # saved in chkpt-2/
 
         diff = conv_results[1] - results[1]
         plot_diagnostics(H.history, H_conv.history, std_plot_name)
         print(f"% diff: {100 * diff}")
+    elif choice == "conv":
+        std_plot_name = input("Provide name of plot: ")
+        H_conv, conv_results = train_model(
+            add_conv=True, config="CONV", model_type="conv"
+        )  # saved in chkpt-1/
+        H, results = train_model(add_conv=False, config="NOCONV")  # saved in chkpt-2/
 
+        diff = conv_results[1] - results[1]
+        plot_diagnostics(H.history, H_conv.history, std_plot_name)
+        print(f"% diff: {100 * diff}")
     else:
         std_plot_name = input("Provide name of plot: ")
-        data = train_probes(get_EncoderOutputs(add_conv=False))
-        conv_data = train_probes(get_EncoderOutputs(add_conv=True))
+        data = train_probes(get_EncoderOutputs(add_conv=False, model_type="vit"))
+        conv_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="vit"))
+        novit_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="conv"))
+        novit_conv_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="conv"))
 
         # label preparation
         no_conv_labels = [
             "Input",
             "Prep",
         ]
-        conv_labels = ["Input", "Conv", "Prep"]
+        conv_labels = ["Input", "PreConv", "Prep"]
         for i in range(NUM_ENCODERS):
             no_conv_labels.append(f"Enc{i}")
             conv_labels.append(f"Enc{i}")
+
+        novit_no_conv_labels = [
+            "Input",
+            "Prep",
+            "Conv"
+        ]
+
+        novit_no_conv_labels = [
+            "Input",
+            "PreConv"
+            "Prep",
+            "Conv"
+        ]
 
         # instantiate figure
         plt.figure(figsize=(15, 17))

@@ -6,7 +6,6 @@ trained: compile
 
 compile:
 	black .
-	flake8 --ignore=E,W .
 
 pdf:
 	for FILE in *; do \

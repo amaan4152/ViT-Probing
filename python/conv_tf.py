@@ -8,12 +8,13 @@ from tensorflow.keras.layers import (
 )
 
 from vit_tf import (
-	DataAugmentation,
-	Patches,
-	PatchEncoder,
-	Preprocessor,
-	FullyConnected, 
+    DataAugmentation,
+    Patches,
+    PatchEncoder,
+    Preprocessor,
+    FullyConnected,
 )
+
 
 class PatchConv(Model):
     def __init__(
@@ -37,7 +38,7 @@ class PatchConv(Model):
             patch_size=patch_size,
             projection_dims=projection_dims,
         )
-        #self.Conv = Conv2D()
+        # self.Conv = Conv2D()
         self.Norm3 = LayerNormalization(epsilon=1e-6)
         self.Head = Dense(units=num_classes)
 
@@ -53,7 +54,7 @@ class PatchConv(Model):
         x = self.Preprocessor(x)
         layer_features.append(x)
         outputs.extend(layer_features)
-        #outputs.extend(self.Encoder.encoder_features)
+        # outputs.extend(self.Encoder.encoder_features)
         self.outputs = outputs
         x = self.Norm3(x)
         x = self.Head(x[:, 0])

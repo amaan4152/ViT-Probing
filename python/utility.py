@@ -1,3 +1,5 @@
+from colorama import Fore
+from colorama import Style
 from os import getcwd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,7 +7,7 @@ from tensorflow.config.experimental import list_physical_devices, set_memory_gro
 
 WRK_DIR = getcwd()
 IMAGE_SIZE = 32
-PATCH_SIZE = 16
+PATCH_SIZE = 15
 
 # ----- UTILITY FUNCTIONS ----- #
 def forward(y):
@@ -96,3 +98,15 @@ def plot_diagnostics(history, history_with_conv, plot_name):
     plt.tight_layout()
     plt.show()
     plt.savefig(f"{WRK_DIR}/plots/{plot_name}.png")
+
+
+def printError(mssg: str):
+    print("[" + Fore.RED + Style.BRIGHT + "ERROR" + Style.RESET_ALL + f"]: {mssg}")
+
+
+def printWarning(mssg: str):
+    print("[" + Fore.YELLOW + Style.BRIGHT + "WARNING" + Style.RESET_ALL + f"]: {mssg}")
+
+
+def printGood(mssg: str):
+    print("[" + Fore.GREEN + Style.BRIGHT + "SUCCESS" + Style.RESET_ALL + f"]: {mssg}")

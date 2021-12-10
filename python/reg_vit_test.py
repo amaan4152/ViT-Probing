@@ -1,15 +1,7 @@
 import colorama as color
-from colorama import Fore
-from colorama import Style
+from utility import *
 
-print(
-    "["
-    + Fore.YELLOW
-    + Style.BRIGHT
-    + "LOADING"
-    + Style.RESET_ALL
-    + "]: dependencies..."
-)
+printWarning("loading dependencies ...")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
 import numpy as np
@@ -24,10 +16,9 @@ from tensorflow.keras.optimizers import Adam
 from CLI_parser import CLI_Parser
 from conv_tf import PatchConv
 from train_probes import train_probes
-from utility import *
 from vit_tf import VisionTransformer
 
-print("[" + Fore.GREEN + Style.BRIGHT + "SUCCESS" + Style.RESET_ALL + "]: load")
+printGood("dependencies loaded!")
 
 
 # ----- CONFIGURATIONS ----- #
@@ -55,7 +46,6 @@ else:  # CIFAR-100
     DATA = cifar100.load_data()
     NUM_CLASSES = 100
 
-
 #   ----- MODEL SETUP ----- #
 def vit_model(x_train, **kwargs):
     extra_layer = None
@@ -81,7 +71,7 @@ def vit_model(x_train, **kwargs):
     return model
 
 
-def conv_model(x_train, **kwargs):
+def pconv_model(x_train, **kwargs):
     extra_layer = None
     if kwargs["add_conv"]:
         extra_layer = Conv2D(
@@ -105,28 +95,20 @@ def conv_model(x_train, **kwargs):
     return model
 
 
+getModel = {"vit": vit_model, "pconv": pconv_model}
+
+
 #  ----- MODEL EXECUTION ----- #
 def train_model(*args, **kwargs):
     # get train/tests
     (train_data, train_labels), (test_data, test_labels) = DATA
 
     # init models
-    m_type = kwargs["model_type"]
-    if m_type == "vit":
-        model = vit_model(x_train=train_data, add_conv=kwargs["add_conv"])
-    elif m_type == "conv":
-        model = conv_model(x_train=train_data, add_conv=kwargs["add_conv"])
-    else:
-        print(
-            "["
-            + Fore.RED
-            + Style.BRIGHT
-            + "ERROR"
-            + Style.RESET_ALL
-            + "]: incorrect model type specified"
-        )
-        exit(1)
+    model = getModel[kwargs["model_type"]](
+        x_train=train_data, add_conv=kwargs["add_conv"]
+    )
 
+    # learning rate scheduler
     lr_sched = PolynomialDecay(
         power=tf.Variable(1),
         initial_learning_rate=tf.Variable(8e-4),
@@ -134,12 +116,14 @@ def train_model(*args, **kwargs):
     )
 
     # https://gist.github.com/yoshihikoueno/4ff0694339f88d579bb3d9b07e609122
+    # Adam optimizer
     adam = Adam(
         learning_rate=lr_sched,
         beta_1=tf.Variable(0.9),
         beta_2=tf.Variable(0.999),
         epsilon=tf.Variable(1e-7),
     )
+
     call_ES = EarlyStopping(patience=tf.Variable(7))
 
     # compile model (no conv)
@@ -176,21 +160,22 @@ def get_EncoderOutputs(add_conv, model_type):
     established inside the ViT model class
     """
     train, test = DATA
-    if model_type == "vit_model":
-        model = vit_model(x_train=train[0], add_conv=add_conv)
-    else:
-        model = conv_model(x_train=train[0], add_conv=add_conv)
+    model = getModel[model_type](x_train=train[0], add_conv=add_conv)
 
     # get latest checkpoint weights for both model types
-    chkpt_dir = "chkpt-1" if add_conv else "chkpt-2"
+    config = "conv" if add_conv else "std"
+    chkpt_dir = f"chkpt-{model_type}-{config}"
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
 
-    # generate train/test dataset
+    # generate train dataset
     model(train[0])
     x_train, y_train = model.outputs, train[1]
+
+    # generate test dataset
     model(test[0])
     x_test, y_test = model.outputs, test[1]
+
     return (x_train, y_train, x_test, y_test)
 
 
@@ -210,17 +195,10 @@ def main():
         + " ====="
     )
     while True:
-        choice = input("Train [vit/conv] or [probes]? ")
+        choice = input("Train [vit/pconv] or [probes]? ")
         if choice.lower() in ("vit", "conv", "probes"):
             break
-        print(
-            "["
-            + Fore.LIGHTRED_EX
-            + Style.BRIGHT
-            + "ERROR"
-            + Style.RESET_ALL
-            + "]: Incorrect input, please retry..."
-        )
+        printError("Invalid input sequence, try again!")
 
     if choice == "vit":
         std_plot_name = input("Provide name of plot: ")
@@ -228,20 +206,20 @@ def main():
             add_conv=True, config="CONV", model_type="vit"
         )  # saved in chkpt-1/
         H, results = train_model(
-            add_conv=False, config="NOCONV", model_type=choice
+            add_conv=False, config="NOCONV", model_type="vit"
         )  # saved in chkpt-2/
 
         diff = conv_results[1] - results[1]
         plot_diagnostics(H.history, H_conv.history, std_plot_name)
         print(f"% diff: {100 * diff}")
 
-    elif choice == "conv":
+    elif choice == "pconv":
         std_plot_name = input("Provide name of plot: ")
         H_conv, conv_results = train_model(
-            add_conv=True, config="CONV", model_type="conv"
+            add_conv=True, config="CONV", model_type="pconv"
         )  # saved in chkpt-1/
         H, results = train_model(
-            add_conv=False, config="NOCONV", model_type="conv"
+            add_conv=False, config="NOCONV", model_type="pconv"
         )  # saved in chkpt-2/
 
         diff = conv_results[1] - results[1]
@@ -252,9 +230,9 @@ def main():
         std_plot_name = input("Provide name of plot: ")
         data = train_probes(get_EncoderOutputs(add_conv=False, model_type="vit"))
         conv_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="vit"))
-        novit_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="conv"))
+        novit_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="pconv"))
         novit_conv_data = train_probes(
-            get_EncoderOutputs(add_conv=True, model_type="conv")
+            get_EncoderOutputs(add_conv=True, model_type="pconv")
         )
 
         # label preparation

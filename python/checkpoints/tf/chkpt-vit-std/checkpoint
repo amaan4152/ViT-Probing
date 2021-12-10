@@ -1,0 +1,2 @@
+model_checkpoint_path: "S_16-RES_32-NOCONV"
+all_model_checkpoint_paths: "S_16-RES_32-NOCONV"

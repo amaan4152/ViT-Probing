@@ -1,11 +1,8 @@
-untrained: compile
+untrained: 
 	python3 reg_vit_test.py --dataset cifar10 --kahan True
 
-trained: compile
+trained: 
 	python3 trained_probe.py
-
-compile:
-	black .
 
 pdf:
 	for FILE in *; do \

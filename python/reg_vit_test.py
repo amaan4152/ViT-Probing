@@ -34,7 +34,7 @@ EPOCHS = 100
 IMAGE_SIZE = 32
 PATCH_SIZE = 15
 PATCH_NUM = (IMAGE_SIZE // PATCH_SIZE) ** 2
-PROJECT_DIMS = 32
+PROJECT_DIMS = 36
 NUM_ENCODERS = 12
 NUM_HEADS = 6
 BOOL_PROBES = ARGS.probes
@@ -73,7 +73,9 @@ def vit_model(x_train, **kwargs):
 
 def pconv_model(x_train, **kwargs):
     extra_layer = None
+    p_size = PATCH_SIZE + 1
     if kwargs["add_conv"]:
+        p_size -= 1
         extra_layer = Conv2D(
             filters=16,
             kernel_size=int(3),
@@ -85,7 +87,7 @@ def pconv_model(x_train, **kwargs):
         x_train=x_train,
         image_size=IMAGE_SIZE,
         num_patches=PATCH_NUM,
-        patch_size=PATCH_SIZE,
+        patch_size=p_size,
         num_encoders=NUM_ENCODERS,
         num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
@@ -133,7 +135,11 @@ def train_model(*args, **kwargs):
         metrics=["accuracy"],
     )
     model.build(input_shape=(32, 32, 3))
-    model.summary()
+
+
+    
+
+    model.summary_model()
 
     # fit
     H = model.fit(
@@ -196,7 +202,7 @@ def main():
     )
     while True:
         choice = input("Train [vit/pconv] or [probes]? ")
-        if choice.lower() in ("vit", "conv", "probes"):
+        if choice.lower() in ("vit", "pconv", "probes"):
             break
         printError("Invalid input sequence, try again!")
 

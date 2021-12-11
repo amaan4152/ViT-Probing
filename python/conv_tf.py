@@ -1,19 +1,32 @@
 import tensorflow as tf
-from tensorflow.keras import layers, Sequential, Model
+from tensorflow.keras import layers, Sequential, Model, Input
 from tensorflow.keras.layers import (
     Dense,
     LayerNormalization,
     MultiHeadAttention,
     Dropout,
+    Conv2D,
+    Reshape,
+    Flatten
 )
 
 from vit_tf import (
     DataAugmentation,
     Patches,
     PatchEncoder,
-    Preprocessor,
     FullyConnected,
 )
+
+class Preprocessor(layers.Layer):
+    def __init__(self, num_patches, patch_size, projection_dims):
+        super(Preprocessor, self).__init__()
+        self.Patches = Patches(patch_size)
+        self.PatchEncoder = PatchEncoder(num_patches, projection_dims)
+
+    def call(self, x):
+        x = self.Patches(x)
+        #x = self.PatchEncoder(x)
+        return x
 
 
 class PatchConv(Model):
@@ -38,7 +51,17 @@ class PatchConv(Model):
             patch_size=patch_size,
             projection_dims=projection_dims,
         )
-        # self.Conv = Conv2D()
+        if self.test_layer:
+            self.Resize = Reshape((4, 15, 15, 16))
+        else:
+            self.Resize = Reshape((4, 16, 16, 3))
+
+        self.Conv = Conv2D(filters=16,
+            kernel_size=int(3),
+            activation="relu",
+            padding="VALID",
+        )
+        self.Flat = Flatten()
         self.Norm3 = LayerNormalization(epsilon=1e-6)
         self.Head = Dense(units=num_classes)
 
@@ -54,8 +77,21 @@ class PatchConv(Model):
         x = self.Preprocessor(x)
         layer_features.append(x)
         outputs.extend(layer_features)
-        # outputs.extend(self.Encoder.encoder_features)
+        x = self.Resize(x)
+        x = self.Conv(x)
+        outputs.append(x)
         self.outputs = outputs
         x = self.Norm3(x)
-        x = self.Head(x[:, 0])
+
+        x = self.Flat(x)
+
+        x = self.Head(x)
         return x
+    
+    '''
+        https://stackoverflow.com/questions/65365745/model-summary-output-is-not-consistent-with-model-definition
+    '''
+    def summary_model(self):
+        inputs = Input(shape=(32, 32, 3))
+        outputs = self.call(inputs)
+        Model(inputs=inputs, outputs=outputs, name="pconv").summary()

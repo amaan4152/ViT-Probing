@@ -1,2 +1,2 @@
-model_checkpoint_path: "S_16-RES_32-CONV"
-all_model_checkpoint_paths: "S_16-RES_32-CONV"
+model_checkpoint_path: "S_15-RES_32"
+all_model_checkpoint_paths: "S_15-RES_32"

@@ -29,15 +29,19 @@ def diradjust(fn):
 
     Citation: https://stackoverflow.com/questions/21716940/is-there-a-way-to-track-the-number-of-times-a-function-is-called/21717084
     """
-
     def wrapper(*args, **kwargs):
-        if kwargs["config"] == "NOCONV":
+        m_type, config = kwargs['model_type'], kwargs['config']
+        if config == "NOCONV":
             config = "-std"
 
-        elif kwargs["config"] == "CONV":
+        elif config == "CONV":
             config = "-conv"
 
-        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{kwargs['model_type']}{config}/S_{PATCH_SIZE}-RES_{IMAGE_SIZE}-{kwargs['config']}"
+        filename = f'S_{PATCH_SIZE}-RES_{IMAGE_SIZE}'
+        if m_type != 'vit':
+            filename = f'P{PATCH_SIZE}-{m_type.upper()}'
+
+        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{kwargs['model_type']}{config}/{filename}"
         print(f"=== NEW CHECKPOINT ADDED: chkpt-{kwargs['model_type']}{config} ===")
         return fn(model=kwargs["model"], path=path)
 
@@ -64,7 +68,7 @@ def gpu_mem_config():
             print(e)
 
 
-def plot_diagnostics(history, history_with_conv, plot_name):
+def plot_diagnostics(history, history_with_conv, plot_name, suptitle):
     """
     Plot accuracy and loss diagnostics of ViT with convolution and without convolution
     """
@@ -93,7 +97,7 @@ def plot_diagnostics(history, history_with_conv, plot_name):
         label="Validation (with conv)",
     )
 
-    plt.suptitle(f"ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}")
+    plt.suptitle(suptitle)
     plt.legend()
     plt.tight_layout()
     plt.show()

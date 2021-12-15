@@ -1,6 +1,5 @@
 absl-py==0.13.0
 appdirs==1.4.4
-astroid==2.8.0
 astunparse==1.6.3
 backports.entry-points-selectable==1.1.0
 cachetools==4.2.2
@@ -71,7 +70,6 @@ toml==0.10.2
 tomli==1.2.1
 tqdm==4.62.2
 typeguard==2.12.1
-typing-extensions==3.10.0.2
 urllib3==1.26.6
 virtualenv==20.8.1
 Werkzeug==2.0.1

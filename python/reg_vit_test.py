@@ -26,6 +26,7 @@ printGood("dependencies loaded!")
 ARGS = CLI_Parser()()
 
 #   ----- MODEL CONFIGURATIONS ----- #
+
 # training hyperparameters
 BATCH_SIZE = 1024
 EPOCHS = 100
@@ -88,8 +89,6 @@ def pconv_model(x_train, **kwargs):
         image_size=IMAGE_SIZE,
         num_patches=PATCH_NUM,
         patch_size=p_size,
-        num_encoders=NUM_ENCODERS,
-        num_heads=NUM_HEADS,
         num_classes=NUM_CLASSES,
         projection_dims=PROJECT_DIMS,
         test_layer=extra_layer,
@@ -98,7 +97,6 @@ def pconv_model(x_train, **kwargs):
 
 
 getModel = {"vit": vit_model, "pconv": pconv_model}
-
 
 #  ----- MODEL EXECUTION ----- #
 def train_model(*args, **kwargs):
@@ -125,7 +123,6 @@ def train_model(*args, **kwargs):
         beta_2=tf.Variable(0.999),
         epsilon=tf.Variable(1e-7),
     )
-
     call_ES = EarlyStopping(patience=tf.Variable(7))
 
     # compile model (no conv)
@@ -135,11 +132,7 @@ def train_model(*args, **kwargs):
         metrics=["accuracy"],
     )
     model.build(input_shape=(32, 32, 3))
-
-
-    
-
-    model.summary_model()
+    model.summary()
 
     # fit
     H = model.fit(
@@ -167,10 +160,12 @@ def get_EncoderOutputs(add_conv, model_type):
     """
     train, test = DATA
     model = getModel[model_type](x_train=train[0], add_conv=add_conv)
+    model.build(input_shape=(32, 32, 3))
 
     # get latest checkpoint weights for both model types
     config = "conv" if add_conv else "std"
     chkpt_dir = f"chkpt-{model_type}-{config}"
+    print(f"=== CHKPT DIR {chkpt_dir} ===")
     latest = tf.train.latest_checkpoint(f"checkpoints/tf/{chkpt_dir}/")
     model.load_weights(latest)
 
@@ -201,46 +196,29 @@ def main():
         + " ====="
     )
     while True:
-        choice = input("Train [vit/pconv] or [probes]? ")
-        if choice.lower() in ("vit", "pconv", "probes"):
+        choice = input("Train [vit/pconv] or [probes]? ").lower()
+        if choice in ("vit", "pconv", "probes"):
             break
+
         printError("Invalid input sequence, try again!")
 
-    if choice == "vit":
+    if choice in getModel.keys():
         std_plot_name = input("Provide name of plot: ")
         H_conv, conv_results = train_model(
-            add_conv=True, config="CONV", model_type="vit"
-        )  # saved in chkpt-1/
+            add_conv=True, config="CONV", model_type=choice
+        )  # saved in chkpt-{choice}-conv/
         H, results = train_model(
-            add_conv=False, config="NOCONV", model_type="vit"
-        )  # saved in chkpt-2/
-
+            add_conv=False, config="NOCONV", model_type=choice
+        )  # saved in chkpt-{choice}-std/
+        
         diff = conv_results[1] - results[1]
-        plot_diagnostics(H.history, H_conv.history, std_plot_name)
-        print(f"% diff: {100 * diff}")
-
-    elif choice == "pconv":
-        std_plot_name = input("Provide name of plot: ")
-        H_conv, conv_results = train_model(
-            add_conv=True, config="CONV", model_type="pconv"
-        )  # saved in chkpt-1/
-        H, results = train_model(
-            add_conv=False, config="NOCONV", model_type="pconv"
-        )  # saved in chkpt-2/
-
-        diff = conv_results[1] - results[1]
-        plot_diagnostics(H.history, H_conv.history, std_plot_name)
+        suptitle = f'{choice}: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}'
+        plot_diagnostics(H.history, H_conv.history, std_plot_name, suptitle)
         print(f"% diff: {100 * diff}")
 
     else:
         std_plot_name = input("Provide name of plot: ")
-        data = train_probes(get_EncoderOutputs(add_conv=False, model_type="vit"))
-        conv_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="vit"))
-        novit_data = train_probes(get_EncoderOutputs(add_conv=True, model_type="pconv"))
-        novit_conv_data = train_probes(
-            get_EncoderOutputs(add_conv=True, model_type="pconv")
-        )
-
+        
         # label preparation
         no_conv_labels = [
             "Input",
@@ -251,47 +229,60 @@ def main():
             no_conv_labels.append(f"Enc{i}")
             conv_labels.append(f"Enc{i}")
 
-        novit_no_conv_labels = ["Input", "Prep", "Conv"]
-
-        novit_no_conv_labels = ["Input", "PreConv" "Prep", "Conv"]
-
-        # instantiate figure
-        plt.figure(figsize=(15, 17))
-        plt.title(f"CIFAR-10 Probes ViT: S_{PATCH_SIZE}-RES_{IMAGE_SIZE}", y=1.04)
-
-        # establish figure characteristics
+        # init figure
+        fig = plt.figure(figsize=(11, 13))
         plt.xlabel("Probe #")
-        plt.xticks(conv_data["x"])
         plt.yscale("function", functions=(forward, inverse))
         plt.ylabel("Accuracy [%]")
 
-        # mercator y-axis scaling
-        ax = plt.gca()
-        max_y = np.max([np.max(data["y"]), np.max(conv_data["y"])])
-        ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1) ** 2))
-        ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1)))
+        plt_shape = [1, 2, 1]
+        for m_type in getModel.keys():
+            # setup axes handler
+            ax = fig.add_subplot(*plt_shape)
+            ax.set_title(f"{m_type.upper()}")
+            ax.set_xlabel("Probe #")
+            ax.set_yscale("function", functions=(forward, inverse))
+            ax.set_ylabel("Accuracy [%]")
 
-        # plot probe data
-        plt.scatter(data["x"], data["y"], marker="x", label="No conv")
-        plt.scatter(conv_data["x"], conv_data["y"], marker="o", label="With conv")
+            # get probe data
+            std_data = train_probes(get_EncoderOutputs(
+                add_conv=False,
+                model_type=m_type
+            ))
+            conv_data = train_probes(get_EncoderOutputs(
+                add_conv=True,
+                model_type=m_type
+            ))
+            
+            # mercator y-axis scaling
+            max_y = np.max([np.max(std_data["y"]), np.max(conv_data["y"])])
+            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1) ** 2))
+            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 1)))
+            ax.set_xticks(conv_data["x"])
 
-        # label points
-        for i, txt in enumerate(no_conv_labels):
-            x = data["x"][i]
-            y = data["y"][i]
-            plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+            # plot probe data
+            ax.scatter(std_data["x"], std_data["y"], marker="x", label="No conv")
+            ax.scatter(conv_data["x"], conv_data["y"], marker="o", label="With conv")
+            
+            # label points
+            for i, txt in enumerate(no_conv_labels):
+                x = std_data["x"][i]
+                y = std_data["y"][i]
+                plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
 
-        for i, txt in enumerate(conv_labels):
-            x = conv_data["x"][i]
-            y = conv_data["y"][i]
-            plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+            for i, txt in enumerate(conv_labels):
+                x = conv_data["x"][i]
+                y = conv_data["y"][i]
+                plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+
+            plt_shape[2] += 1
 
         # tidy up plot
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
         plt.show()
-        plt.savefig(std_plot_name)
+        plt.savefig(f"probe_plots/{std_plot_name}")
 
 
 if __name__ == "__main__":

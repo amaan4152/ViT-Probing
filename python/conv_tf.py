@@ -36,8 +36,6 @@ class PatchConv(Model):
         image_size,
         num_patches,
         patch_size,
-        num_encoders,
-        num_heads,
         num_classes,
         projection_dims,
         test_layer=None,

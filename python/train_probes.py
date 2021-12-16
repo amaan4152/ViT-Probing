@@ -3,7 +3,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Dense
 import numpy as np
 
-BATCH_SIZE = 1024
+BATCH_SIZE = 32
 
 # ----------Import data----------#
 """

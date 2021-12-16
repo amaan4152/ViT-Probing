@@ -226,14 +226,11 @@ def main() -> int:
 
     else:
         # init figure
-        fig = plt.figure(figsize=(17, 11))
-        plt.xlabel("Probe #")
-        plt.yscale("function", functions=(forward, inverse))
-        plt.ylabel("Accuracy [%]")
-
+        fig = plt.figure(figsize=(19, 9))
         plt_shape = [1, 2, 1]
         
-        for m_type in getModel.keys():
+        ax_init = None
+        for m_type in ('pconv', 'vit'):
             # label preparation
             no_conv_labels = [
                 "Input",
@@ -252,6 +249,8 @@ def main() -> int:
 
             # setup axes handler
             ax = fig.add_subplot(*plt_shape)
+            if m_type == 'vit':
+                ax = fig.add_subplot(*plt_shape, sharey=ax_init)
             ax.set_title(f"{m_type.upper()}")
             ax.set_xlabel("Probe #")
             ax.set_yscale("function", functions=(forward, inverse))
@@ -268,9 +267,9 @@ def main() -> int:
             ))
             
             # mercator y-axis scaling
-            max_y = np.max([np.max(std_data["y"]), np.max(conv_data["y"])])
-            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 5) ** 2))
-            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, max_y + 5)))
+            # max_y = np.max([np.max(std_data["y"]), np.max(conv_data["y"])])
+            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, 70) ** 2))
+            ax.yaxis.set_major_locator(FixedLocator(np.arange(0, 70)))
             ax.set_xticks(conv_data["x"])
 
             # plot probe data
@@ -281,18 +280,25 @@ def main() -> int:
             for i, txt in enumerate(no_conv_labels):
                 x = std_data["x"][i]
                 y = std_data["y"][i]
-                plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+                offset = (-0.25, 0.4)
+                if m_type == 'pconv':
+                    offset = (0.1, -0.2)
+                ax.annotate(txt, (x, y), xytext=(x + offset[0], y + offset[1]))
 
             for i, txt in enumerate(conv_labels):
                 x = conv_data["x"][i]
                 y = conv_data["y"][i]
-                plt.annotate(txt, (x, y), xytext=(x - 0.25, y + 0.4))
+                offset = (-0.25, 0.4)
+                if m_type == 'pconv':
+                    offset = (0.1, -0.2)
+                ax.annotate(txt, (x, y), xytext=(x + offset[0], y + offset[1]))
 
             plt_shape = [1, 2, 2]
             ax.grid()
+            ax.legend(loc="lower right")
+            ax_init = ax
 
         # tidy up plot
-        plt.legend()
         plt.tight_layout()
         plt.show()
         plt.savefig(f"probe_plots/{std_plot_name}")

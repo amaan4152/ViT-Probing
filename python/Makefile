@@ -1,8 +1,12 @@
 untrained: 
-	python3 reg_vit_test.py --dataset cifar10 --kahan True
+	python3 main_driver.py --dataset cifar10 --kahan True
 
 trained: 
 	python3 trained_probe.py
+
+automate_train_probes: 
+	python3 main_driver.py --dataset cifar10 --kahan True --slurm "probes pconv_vs_vit"
+ 		
 
 pdf:
 	for FILE in *; do \
@@ -12,6 +16,7 @@ pdf:
 		ps2pdf "$${FILE%%.*}.ps"; done; \
 	rm *.ps; \
 	gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=vit_probes.pdf *.pdf;
-	
+ 	
 clean: 
 	rm *.pdf
+ 

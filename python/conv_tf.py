@@ -1,10 +1,7 @@
-import tensorflow as tf
-from tensorflow.keras import layers, Sequential, Model, Input
+from tensorflow.keras import layers, Model, Input
 from tensorflow.keras.layers import (
     Dense,
     LayerNormalization,
-    MultiHeadAttention,
-    Dropout,
     Conv2D,
     Reshape,
     Flatten
@@ -12,20 +9,16 @@ from tensorflow.keras.layers import (
 
 from vit_tf import (
     DataAugmentation,
-    Patches,
-    PatchEncoder,
-    FullyConnected,
+    Patches
 )
 
 class Preprocessor(layers.Layer):
-    def __init__(self, num_patches, patch_size, projection_dims):
+    def __init__(self, patch_size):
         super(Preprocessor, self).__init__()
         self.Patches = Patches(patch_size)
-        self.PatchEncoder = PatchEncoder(num_patches, projection_dims)
 
     def call(self, x):
         x = self.Patches(x)
-        #x = self.PatchEncoder(x)
         return x
 
 
@@ -34,10 +27,8 @@ class PatchConv(Model):
         self,
         x_train,
         image_size,
-        num_patches,
         patch_size,
         num_classes,
-        projection_dims,
         test_layer=None,
     ):
         super(PatchConv, self).__init__()
@@ -45,9 +36,7 @@ class PatchConv(Model):
         self.DataAugmentation.layers[0].adapt(x_train)
         self.test_layer = test_layer
         self.Preprocessor = Preprocessor(
-            num_patches=num_patches,
-            patch_size=patch_size,
-            projection_dims=projection_dims,
+            patch_size=patch_size
         )
         if self.test_layer:
             self.Resize = Reshape((4, 15, 15, 16))
@@ -80,9 +69,7 @@ class PatchConv(Model):
         outputs.append(x)
         self.outputs = outputs
         x = self.Norm3(x)
-
         x = self.Flat(x)
-
         x = self.Head(x)
         return x
     

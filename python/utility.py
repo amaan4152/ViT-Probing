@@ -39,10 +39,10 @@ def diradjust(fn):
 
         filename = f'S_{PATCH_SIZE}-RES_{IMAGE_SIZE}'
         if m_type != 'vit':
-            filename = f'P{PATCH_SIZE}-{m_type.upper()}'
+            filename = f'P{PATCH_SIZE}-{m_type.upper()}{config}'
 
-        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{kwargs['model_type']}{config}/{filename}"
-        print(f"=== NEW CHECKPOINT ADDED: chkpt-{kwargs['model_type']}{config} ===")
+        path = f"{WRK_DIR}/checkpoints/tf/chkpt-{m_type}{config}/{filename}"
+        print(f"=== NEW CHECKPOINT ADDED: chkpt-{m_type}{config} ===")
         return fn(model=kwargs["model"], path=path)
 
     return wrapper

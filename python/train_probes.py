@@ -76,5 +76,5 @@ def train_probes(data):
     print("EVALUATION COMPLETED!")
 
     # ----------Print Results----------#
-    encoders = range(1, NUM_PROBES + 1)
+    encoders = np.arange(1, NUM_PROBES + 1)
     return {"x": encoders, "y": probe_accuracies}

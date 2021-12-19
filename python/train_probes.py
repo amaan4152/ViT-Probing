@@ -34,7 +34,17 @@ def train_probes(data):
         # Try changing this (don't use sequential)
         # flatten: untrustworthy!
         probe = tf.keras.Sequential(
-            [Dense(10, activation="softmax")]
+            [
+             Dense(1024, 
+                   activation='elu',
+                   kernel_initializer='he_normal'), 
+             Dense(128, 
+                   activation='elu',
+                   kernel_initializer='he_normal'), 
+             Dense(10, 
+                   activation="softmax",
+                   kernel_initializer='he_normal')
+            ]
         )
         probe_list.append(probe)
 

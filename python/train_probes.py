@@ -3,7 +3,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.layers import Dense
 import numpy as np
 
-BATCH_SIZE = 32
+BATCH_SIZE = 1024
 
 # ----------Import data----------#
 """
@@ -34,7 +34,7 @@ def train_probes(data):
         # Try changing this (don't use sequential)
         # flatten: untrustworthy!
         probe = tf.keras.Sequential(
-            [Dense(128, activation="relu"), Dense(10, activation="softmax")]
+            [Dense(10, activation="softmax")]
         )
         probe_list.append(probe)
 
@@ -56,8 +56,8 @@ def train_probes(data):
             y_train,
             epochs=EPOCHS,
             batch_size=BATCH_SIZE,
-            steps_per_epoch=(0.9 * x_train[0].shape[0] // BATCH_SIZE),
-            validation_split=0.1,
+            steps_per_epoch=(0.8 * x_train[0].shape[0] // BATCH_SIZE),
+            validation_split=0.2,
             callbacks=[call_ES],
         )
         probe_num += 1
@@ -76,5 +76,12 @@ def train_probes(data):
     print("EVALUATION COMPLETED!")
 
     # ----------Print Results----------#
-    encoders = np.arange(1, NUM_PROBES + 1)
-    return {"x": encoders, "y": probe_accuracies}
+    x_vals = np.arange(1, NUM_PROBES + 1)
+    if NUM_PROBES == 3:
+        x_vals = np.arange(1, NUM_PROBES + 2)
+        x_vals = x_vals[x_vals != 2]
+    elif NUM_PROBES == 14: 
+        x_vals = np.arange(1, NUM_PROBES + 2)
+        x_vals = x_vals[x_vals != 2]
+
+    return {"x": x_vals, "y": probe_accuracies}

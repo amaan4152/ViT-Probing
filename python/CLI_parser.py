@@ -17,7 +17,7 @@ class CLI_Parser(object):
             "--kahan", type=bool, required=False, default=True, help="add probes"
         )
         parser.add_argument(
-            "--slurm", type=str, required=False, default="probes", help="setup for slurm job"
+            "--slurm", type=str, required=False, default="", help="setup for slurm job"
         )
         self.args = parser.parse_args()
 

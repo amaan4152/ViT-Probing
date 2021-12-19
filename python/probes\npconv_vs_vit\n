@@ -1,8 +1,0 @@
-[[33m[1mWARNING[0m]: loading dependencies ...
-[[32m[1mSUCCESS[0m]: dependencies loaded!
-===== Vision Transformer : Linear Probing =====
-Train [vit/pconv] or [probes]? [[33m[1mWARNING[0m]: loading dependencies ...
-[[32m[1mSUCCESS[0m]: dependencies loaded!
-===== Vision Transformer : Linear Probing =====
-Train [vit/pconv] or [probes]? [ERROR]: Invalid input sequence, try again!
-Train [vit/pconv] or [probes]? 

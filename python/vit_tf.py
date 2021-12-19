@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers, Sequential, Model
 from tensorflow.keras.layers import (
+    Input,
     Dense,
     LayerNormalization,
     MultiHeadAttention,
@@ -22,12 +23,10 @@ def DataAugmentation(img_sz):
     return data_augmentation
 
 
-"""
-    Generate patches of size (PATCH_SIZE, PATCH_SIZE) per image
-"""
-
-
 class Patches(layers.Layer):
+    """
+    Generate patches of size (PATCH_SIZE, PATCH_SIZE) per image
+    """
     def __init__(self, patch_size):
         super(Patches, self).__init__()
         self.patch_size = patch_size
@@ -47,14 +46,12 @@ class Patches(layers.Layer):
         return patches
 
 
-"""
+class PatchEncoder(layers.Layer):
+    """
     1) Perform a linear projection of given patches onto a projection dimension
     2) Add a learnable class embedding to the patch embedding
     3) Combine the patch embedding and the position embedding
-"""
-
-
-class PatchEncoder(layers.Layer):
+    """
     def __init__(self, num_patches, projection_dims):
         super(PatchEncoder, self).__init__()
         self.projection_dims = projection_dims
@@ -136,6 +133,10 @@ class Encoder(layers.Layer):
 
 
 class VisionTransformer(Model):
+    """
+    References:
+    (1) https://github.com/keras-team/keras-io/blob/master/examples/vision/image_classification_with_vision_transformer.py
+    """
     def __init__(
         self,
         x_train,
@@ -149,6 +150,7 @@ class VisionTransformer(Model):
         test_layer=None,
     ):
         super(VisionTransformer, self).__init__()
+        self.img_sz = image_size
         self.DataAugmentation = DataAugmentation(image_size)
         self.DataAugmentation.layers[0].adapt(x_train)
         self.test_layer = test_layer
@@ -184,8 +186,7 @@ class VisionTransformer(Model):
         x = self.Head(x[:, 0])
         return x
 
-
-"""
-References:
-(1) https://github.com/keras-team/keras-io/blob/master/examples/vision/image_classification_with_vision_transformer.py
-"""
+    def summary_model(self):
+        inputs = Input(shape=(self.img_sz, self.img_sz, 3))
+        outputs = self.call(inputs)
+        Model(inputs=inputs, outputs=outputs, name="vit").summary()

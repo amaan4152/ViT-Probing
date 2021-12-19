@@ -32,6 +32,7 @@ class PatchConv(Model):
         test_layer=None,
     ):
         super(PatchConv, self).__init__()
+        self.img_sz = image_size
         self.DataAugmentation = DataAugmentation(image_size)
         self.DataAugmentation.layers[0].adapt(x_train)
         self.test_layer = test_layer
@@ -77,6 +78,6 @@ class PatchConv(Model):
         https://stackoverflow.com/questions/65365745/model-summary-output-is-not-consistent-with-model-definition
     '''
     def summary_model(self):
-        inputs = Input(shape=(32, 32, 3))
+        inputs = Input(shape=(self.img_sz, self.img_sz, 3))
         outputs = self.call(inputs)
         Model(inputs=inputs, outputs=outputs, name="pconv").summary()
